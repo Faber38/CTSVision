@@ -1,0 +1,290 @@
+[
+  {
+    "name": "main_menu_block_aussteigen",
+    "filename": "main_menu_block_aussteigen.png",
+    "template": "assets/templates/main_menu_block_aussteigen.png",
+    "description": "",
+    "group": "Hauptmenü",
+    "group_order": 1,
+    "title": "Aussteigen"
+  },
+  {
+    "name": "main_menu_block_autostart",
+    "filename": "main_menu_block_autostart.png",
+    "template": "assets/templates/main_menu_block_autostart.png",
+    "description": "",
+    "group": "Hauptmenü",
+    "group_order": 1,
+    "title": "Autostart"
+  },
+  {
+    "name": "main_menu_block_carrierdienste",
+    "filename": "main_menu_block_carrierdienste.png",
+    "template": "assets/templates/main_menu_block_carrierdienste.png",
+    "description": "",
+    "group": "Hauptmenü",
+    "group_order": 1,
+    "title": "Carrier-Dienste"
+  },
+  {
+    "name": "carrier_services_block_carriermanagement",
+    "filename": "carrier_services_block_carriermanagement.png",
+    "template": "assets/templates/carrier_services_block_carriermanagement.png",
+    "description": "",
+    "group": "Carrier-Dienste",
+    "group_order": 2,
+    "title": "Carrier-Management"
+  },
+  {
+    "name": "carrier_services_block_crewlounge",
+    "filename": "carrier_services_block_crewlounge.png",
+    "template": "assets/templates/carrier_services_block_crewlounge.png",
+    "description": "",
+    "group": "Carrier-Dienste",
+    "group_order": 2,
+    "title": "Crew-Lounge"
+  },
+  {
+    "name": "carrier_services_block_einloesebuero",
+    "filename": "carrier_services_block_einloesebuero.png",
+    "template": "assets/templates/carrier_services_block_einloesebuero.png",
+    "description": "",
+    "group": "Carrier-Dienste",
+    "group_order": 2,
+    "title": "Einlösebüro"
+  },
+  {
+    "name": "carrier_services_focus_right",
+    "filename": "carrier_services_focus_right.png",
+    "template": "assets/templates/carrier_services_focus_right.png",
+    "description": "",
+    "group": "Carrier-Dienste",
+    "group_order": 2,
+    "title": "Fokus rechts"
+  },
+  {
+    "name": "carrier_services_block_cartographics",
+    "filename": "carrier_services_block_cartographics.png",
+    "template": "assets/templates/carrier_services_block_cartographics.png",
+    "description": "",
+    "group": "Carrier-Dienste",
+    "group_order": 2,
+    "title": "Kartografische Daten"
+  },
+  {
+    "name": "carrier_services_block_schattenhandel",
+    "filename": "carrier_services_block_schattenhandel.png",
+    "template": "assets/templates/carrier_services_block_schattenhandel.png",
+    "description": "",
+    "group": "Carrier-Dienste",
+    "group_order": 2,
+    "title": "Schattenhandel"
+  },
+  {
+    "name": "carrier_services_block_tritiumdepot",
+    "filename": "carrier_services_block_tritiumdepot.png",
+    "template": "assets/templates/carrier_services_block_tritiumdepot.png",
+    "description": "",
+    "group": "Carrier-Dienste",
+    "group_order": 2,
+    "title": "Tritiumdepot"
+  },
+  {
+    "name": "carrier_services_block_verlassen",
+    "filename": "carrier_services_block_verlassen.png",
+    "template": "assets/templates/carrier_services_block_verlassen.png",
+    "description": "",
+    "group": "Carrier-Dienste",
+    "group_order": 2,
+    "title": "Verlassen"
+  },
+  {
+    "name": "carrier_services_block_warenmarkt",
+    "filename": "carrier_services_block_warenmarkt.png",
+    "template": "assets/templates/carrier_services_block_warenmarkt.png",
+    "description": "",
+    "group": "Carrier-Dienste",
+    "group_order": 2,
+    "title": "Warenmarkt"
+  },
+  {
+    "name": "carrier_services_block_werft",
+    "filename": "carrier_services_block_werft.png",
+    "template": "assets/templates/carrier_services_block_werft.png",
+    "description": "",
+    "group": "Carrier-Dienste",
+    "group_order": 2,
+    "title": "Werft"
+  },
+  {
+    "name": "carrier_management_ausstattung",
+    "filename": "carrier_management_ausstattung.png",
+    "template": "assets/templates/carrier_management_ausstattung.png",
+    "description": "",
+    "group": "Carrier-Management",
+    "group_order": 3,
+    "title": "Ausstattung"
+  },
+  {
+    "name": "carrier_management_barkeeper",
+    "filename": "carrier_management_barkeeper.png",
+    "template": "assets/templates/carrier_management_barkeeper.png",
+    "description": "",
+    "group": "Carrier-Management",
+    "group_order": 3,
+    "title": "Barkeeper"
+  },
+  {
+    "name": "carrier_management_budget",
+    "filename": "carrier_management_budget.png",
+    "template": "assets/templates/carrier_management_budget.png",
+    "description": "",
+    "group": "Carrier-Management",
+    "group_order": 3,
+    "title": "Budget"
+  },
+  {
+    "name": "carrier_management_carrierdienste",
+    "filename": "carrier_management_carrierdienste.png",
+    "template": "assets/templates/carrier_management_carrierdienste.png",
+    "description": "",
+    "group": "Carrier-Management",
+    "group_order": 3,
+    "title": "Carrier-Dienste"
+  },
+  {
+    "name": "carrier_management_einstellungen",
+    "filename": "carrier_management_einstellungen.png",
+    "template": "assets/templates/carrier_management_einstellungen.png",
+    "description": "",
+    "group": "Carrier-Management",
+    "group_order": 3,
+    "title": "Einstellungen"
+  },
+  {
+    "name": "carrier_management_lackiererei",
+    "filename": "carrier_management_lackiererei.png",
+    "template": "assets/templates/carrier_management_lackiererei.png",
+    "description": "",
+    "group": "Carrier-Management",
+    "group_order": 3,
+    "title": "Lackiererei"
+  },
+  {
+    "name": "carrier_management_navigation",
+    "filename": "carrier_management_navigation.png",
+    "template": "assets/templates/carrier_management_navigation.png",
+    "description": "",
+    "group": "Carrier-Management",
+    "group_order": 3,
+    "title": "Navigation"
+  },
+  {
+    "name": "carrier_management_piloten",
+    "filename": "carrier_management_piloten.png",
+    "template": "assets/templates/carrier_management_piloten.png",
+    "description": "",
+    "group": "Carrier-Management",
+    "group_order": 3,
+    "title": "Piloten"
+  },
+  {
+    "name": "carrier_management_schattenhandel",
+    "filename": "carrier_management_schattenhandel.png",
+    "template": "assets/templates/carrier_management_schattenhandel.png",
+    "description": "",
+    "group": "Carrier-Management",
+    "group_order": 3,
+    "title": "Schattenhandel"
+  },
+  {
+    "name": "carrier_management_verlassen",
+    "filename": "carrier_management_verlassen.png",
+    "template": "assets/templates/carrier_management_verlassen.png",
+    "description": "",
+    "group": "Carrier-Management",
+    "group_order": 3,
+    "title": "Verlassen"
+  },
+  {
+    "name": "carrier_management_warenhandel",
+    "filename": "carrier_management_warenhandel.png",
+    "template": "assets/templates/carrier_management_warenhandel.png",
+    "description": "",
+    "group": "Carrier-Management",
+    "group_order": 3,
+    "title": "Warenhandel"
+  },
+  {
+    "name": "carrier_management_werft",
+    "filename": "carrier_management_werft.png",
+    "template": "assets/templates/carrier_management_werft.png",
+    "description": "",
+    "group": "Carrier-Management",
+    "group_order": 3,
+    "title": "Werft"
+  },
+  {
+    "name": "carrier_management_uebersicht",
+    "filename": "carrier_management_uebersicht.png",
+    "template": "assets/templates/carrier_management_uebersicht.png",
+    "description": "",
+    "group": "Carrier-Management",
+    "group_order": 3,
+    "title": "Übersicht"
+  },
+  {
+    "name": "galaxiekarte_action_button_a",
+    "filename": "galaxiekarte_action_button_a.png",
+    "template": "assets/templates/galaxiekarte_action_button_a.png",
+    "description": "",
+    "group": "Galaxiekarte",
+    "group_order": 4,
+    "title": "Aktionsschaltfläche A"
+  },
+  {
+    "name": "galaxiekarte_action_button_b",
+    "filename": "galaxiekarte_action_button_b.png",
+    "template": "assets/templates/galaxiekarte_action_button_b.png",
+    "description": "",
+    "group": "Galaxiekarte",
+    "group_order": 4,
+    "title": "Aktionsschaltfläche B"
+  },
+  {
+    "name": "galaxiekarte_carrier_target",
+    "filename": "galaxiekarte_carrier_target.png",
+    "template": "assets/templates/galaxiekarte_carrier_target.png",
+    "description": "",
+    "group": "Galaxiekarte",
+    "group_order": 4,
+    "title": "Carrier-Ziel"
+  },
+  {
+    "name": "galaxiekarte_erstes_suchergebnis",
+    "filename": "galaxiekarte_erstes_suchergebnis.png",
+    "template": "assets/templates/galaxiekarte_erstes_suchergebnis.png",
+    "description": "",
+    "group": "Galaxiekarte",
+    "group_order": 4,
+    "title": "Erstes Suchergebnis"
+  },
+  {
+    "name": "galaxiekarte_search_input_active_a",
+    "filename": "galaxiekarte_search_input_active_a.png",
+    "template": "assets/templates/galaxiekarte_search_input_active_a.png",
+    "description": "",
+    "group": "Galaxiekarte",
+    "group_order": 4,
+    "title": "Suchfeld aktiv A"
+  },
+  {
+    "name": "galaxiekarte_search_input_active_b",
+    "filename": "galaxiekarte_search_input_active_b.png",
+    "template": "assets/templates/galaxiekarte_search_input_active_b.png",
+    "description": "",
+    "group": "Galaxiekarte",
+    "group_order": 4,
+    "title": "Suchfeld aktiv B"
+  }
+]

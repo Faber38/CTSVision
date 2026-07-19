@@ -1,0 +1,139 @@
+{
+  "main_menu": {
+    "prefix": "main_menu_block_",
+    "states": {
+      "main_menu_block_carrierdienste": {
+        "s": "main_menu_block_autostart"
+      },
+      "main_menu_block_autostart": {
+        "w": "main_menu_block_carrierdienste",
+        "s": "main_menu_block_aussteigen"
+      },
+      "main_menu_block_aussteigen": {
+        "w": "main_menu_block_autostart"
+      }
+    }
+  },
+
+  "carrier_services": {
+    "prefix": "carrier_services_",
+    "states": {
+      "carrier_services_block_cartographics": {
+        "s": "carrier_services_block_einloesebuero"
+      },
+
+      "carrier_services_block_werft": {
+        "s": "carrier_services_block_crewlounge"
+      },
+
+      "carrier_services_block_warenmarkt": {
+        "s": "carrier_services_block_schattenhandel"
+      },
+
+      "carrier_services_block_einloesebuero": {
+        "w": "carrier_services_block_cartographics",
+        "s": "carrier_services_block_tritiumdepot"
+      },
+
+      "carrier_services_block_schattenhandel": {
+        "w": "carrier_services_block_warenmarkt"
+      },
+
+      "carrier_services_block_tritiumdepot": {
+        "w": "carrier_services_block_einloesebuero",
+        "s": "carrier_services_block_verlassen",
+        "d": "carrier_services_block_crewlounge"
+      },
+
+      "carrier_services_block_crewlounge": {
+        "a": "carrier_services_block_tritiumdepot",
+        "w": "carrier_services_block_werft",
+        "s": "carrier_services_block_verlassen",
+        "d": "carrier_services_block_carriermanagement"
+      },
+
+      "carrier_services_block_carriermanagement": {
+        "a": "carrier_services_block_crewlounge",
+        "d": "carrier_services_focus_right"
+      },
+
+      "carrier_services_block_verlassen": {
+        "w": "carrier_services_block_tritiumdepot"
+      },
+
+      "carrier_services_focus_right": {
+        "s": "carrier_services_block_verlassen"
+      }
+    }
+  },
+
+  "carrier_management": {
+    "prefix": "carrier_management_",
+    "extra_width": 0,
+    "extra_height": 0,
+    "states": {
+      "carrier_management_uebersicht": {
+        "s": "carrier_management_navigation"
+      },
+
+      "carrier_management_navigation": {
+        "w": "carrier_management_uebersicht",
+        "s": "carrier_management_budget"
+      },
+
+      "carrier_management_budget": {
+        "w": "carrier_management_navigation",
+        "s": "carrier_management_warenhandel"
+      },
+
+      "carrier_management_warenhandel": {
+        "w": "carrier_management_budget",
+        "s": "carrier_management_carrierdienste"
+      },
+
+      "carrier_management_carrierdienste": {
+        "w": "carrier_management_warenhandel",
+        "s": "carrier_management_barkeeper"
+      },
+
+      "carrier_management_barkeeper": {
+        "w": "carrier_management_carrierdienste",
+        "s": "carrier_management_schattenhandel"
+      },
+
+      "carrier_management_schattenhandel": {
+        "w": "carrier_management_barkeeper",
+        "s": "carrier_management_werft"
+      },
+
+      "carrier_management_werft": {
+        "w": "carrier_management_schattenhandel",
+        "s": "carrier_management_ausstattung"
+      },
+
+      "carrier_management_ausstattung": {
+        "w": "carrier_management_werft",
+        "s": "carrier_management_lackiererei"
+      },
+
+      "carrier_management_lackiererei": {
+        "w": "carrier_management_ausstattung",
+        "s": "carrier_management_einstellungen"
+      },
+
+      "carrier_management_einstellungen": {
+        "w": "carrier_management_lackiererei",
+        "s": "carrier_management_piloten"
+      },
+
+      "carrier_management_piloten": {
+        "w": "carrier_management_einstellungen",
+        "s": "carrier_management_verlassen"
+      },
+
+      "carrier_management_verlassen": {
+        "w": "carrier_management_piloten"
+      }
+    }
+  }
+}
