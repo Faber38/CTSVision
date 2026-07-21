@@ -1,7 +1,7 @@
 # 🚀 CTSVision
 
 <p align="center">
-  <img src="docs/images/ctsvision_banner.png" alt="CTSVision Banner" width="100%">
+  <img src="docs/ctsvision_banner.png" alt="CTSVision Banner" width="100%">
 </p>
 
 <p align="center">

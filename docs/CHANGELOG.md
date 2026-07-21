@@ -10,6 +10,12 @@ Keep a Changelog sowie Semantic Versioning.
 
 ### Verbesserungen
 
+- Neue konfigurierbare Tritium-Position.
+- Die Auswahl der Tritiumzeile erfolgt jetzt über den orangefarbenen Auswahlbalken statt über den kleinen Auswahlpfeil.
+- Dadurch wurde die Kompatibilität mit unterschiedlichen Auflösungen und UI-Skalierungen deutlich verbessert.
+
+### Verbesserungen
+
 - Neue Einstellung **„Tritium-Position“** ergänzt.
 - Die Tritiumsuche kann jetzt an einer frei wählbaren Position innerhalb der Transferliste beginnen.
 - Dadurch werden auch sehr lange Warenlisten deutlich schneller durchsucht.
