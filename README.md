@@ -1,161 +1,133 @@
-🚀 CTSVision
+# 🚀 CTSVision
 
-Automatisierung für Fleet Carrier in Elite Dangerous
+<p align="center">
+  <img src="docs/images/ctsvision_banner.png" alt="CTSVision Banner" width="100%">
+</p>
 
-CTSVision ist ein Linux-Programm zur Automatisierung vonFleet-Carrier-Abläufen in Elite Dangerous.
+<p align="center">
 
-Im Mittelpunkt stehen Computer Vision, OCR und die Auswertungdes Elite-Journals. Dadurch werden Spielzustände erkannt undEntscheidungen anhand des tatsächlichen Bildschirminhalts getroffen --nicht anhand fester Zeitabläufe.
+![Version](https://img.shields.io/badge/version-1.0.1-orange)
+![Platform](https://img.shields.io/badge/Linux-Pop!__OS-success)
+![Python](https://img.shields.io/badge/Python-3.11+-blue)
+![License](https://img.shields.io/badge/License-GPL--3.0-green)
 
-✨ Funktionen
+</p>
 
-Automatische Fleet-Carrier-Sprünge
+**Computer Vision für Fleet Carrier in Elite Dangerous**
 
-Vision-basierte Menünavigation
+CTSVision automatisiert Fleet-Carrier-Abläufe unter Linux. Statt mit festen Zeitabläufen zu arbeiten, erkennt das Programm den tatsächlichen Spielzustand über **Computer Vision**, **OCR** und das **Elite-Journal** und trifft seine Entscheidungen dynamisch.
 
-OCR-Auswertung des Tritium-Tankfüllstands
+---
 
-Automatisches Betanken des Fleet Carriers
+# ✨ Highlights
 
-Tankfunktion separat testbar
+- 🚀 Automatische Fleet-Carrier-Sprünge
+- ⛽ Automatisches Betanken des Fleet Carriers
+- 👁️ Vision-basierte Menünavigation
+- 🔍 OCR-Auswertung des Tritium-Tankfüllstands
+- 📖 Elite-Journal-Auswertung
+- 🧪 Vision Wizard zum Erstellen von Referenzbildern
+- ⛽ Tank Wizard zum Testen der Tankfunktion
+- 💾 Fortsetzen gespeicherter Routen
+- 🐧 Entwickelt für Linux (Pop!_OS)
 
-Statusanzeige des Tankvorgangs
+---
 
-Fortsetzen einer gespeicherten Route
+# 📸 Oberfläche
 
-Ausführung unter Linux (getestet mit Pop!_OS)
+> Füge hier einen Screenshot des Hauptfensters ein.
 
-📦 Installation
+```text
+docs/images/main_window.png
+```
 
-Erstinstallation:
+---
 
+# 🛠️ Installation
+
+```bash
+git clone https://github.com/Faber38/CTSVision.git
+cd CTSVision
 ./install.sh
-
-Programm starten:
-
 ./start.sh
+```
 
-🖼️ Ersteinrichtung
+---
 
-Vor dem ersten Automatiklauf müssen mit dem Vision Wizard dieReferenzbilder erstellt werden.
+# 🖼️ Ersteinrichtung
 
-Da sich Monitore, Auflösungen und Grafikeinstellungen unterscheiden,geschieht dies einmalig auf jedem Rechner.
+Beim ersten Start werden mit dem **Vision Wizard** die Referenzbilder erstellt. Dieser Schritt ist pro Rechner nur einmal notwendig.
 
-💡 Empfehlung
+## Vision Wizard
 
-Für die höchste Erkennungsgenauigkeit sollte immer dasselbe Schifffür Carrier-Sprünge und das automatische Betanken verwendet werden.
+- Erstellt Referenzbilder passend zu deiner Auflösung.
+- Kalibriert die Bilderkennung.
 
-Unterschiedliche Schiffe besitzen leicht abweichende Cockpitansichten.Schon kleine Pixelverschiebungen können die Bilderkennung beeinflussen.
+## Tank Wizard
 
-Daher wird empfohlen:
+- Prüft die komplette Tankfunktion.
+- Testet die Tritium-Erkennung ohne einen echten Tankvorgang.
 
-immer dasselbe Schiff verwenden
+---
 
-während eines Automatiklaufs nicht das Schiff wechseln
+# ⛽ Tritium-Position
 
-nach einem dauerhaften Schiffwechsel die Referenzbilder neuerstellen
+Mit der Einstellung **Tritium-Position** wird festgelegt, an welcher Position CTSVision die Suche nach **TRITIUM** beginnt.
 
-🖥️ Systemvoraussetzungen
+| Wert | Bedeutung |
+|------:|-----------|
+| 0 | Erste Listenzeile |
+| -5 | 5 Zeilen nach unten |
+| -20 | 20 Zeilen nach unten |
+| -44 | 44 Zeilen nach unten |
+| 3 | 3 Zeilen nach oben |
 
-Linux
+Anschließend wird automatisch ein kleiner Bereich um diese Position durchsucht.
 
-Python 3.11 oder neuer
+---
 
-X11
+# 🖥️ Voraussetzungen
 
-Elite Dangerous: Odyssey
+- Linux
+- Python 3.11+
+- X11
+- Elite Dangerous: Odyssey
 
-🖥️ Empfohlene Arbeitsumgebung
+---
 
-Für einen zuverlässigen Automatikbetrieb wird empfohlen, Elite Dangerousallein auf einer eigenen Arbeitsfläche (Virtual Desktop) auszuführen.
+# 🛣️ Roadmap
 
-CTSVision arbeitet ausschließlich mit dem sichtbaren Bildschirminhalt vonElite Dangerous. Änderungen am Fensterinhalt – etwa durch überlagerndeFenster oder einen Wechsel auf eine andere Anwendung – können dieBilderkennung beeinträchtigen oder zu einem Abbruch des Automatiklaufsführen.
+## Version 1.0.x
 
-Daher wird empfohlen:
+- ✅ Vision-System
+- ✅ OCR
+- ✅ Carrier-Sprünge
+- ✅ Automatische Tankfunktion
+- ✅ Routenfortsetzung
 
-Elite Dangerous als einziges sichtbares Fenster auf dieser Arbeitsflächeauszuführen.
+## Geplant
 
-Das Elite-Fenster während des Automatiklaufs nicht zu minimieren oder zuüberdecken.
+- Mehrere Schiffprofile
+- Erweiterte Vision-Profile
+- Weitere Komfortfunktionen
 
-Während eines Automatiklaufs nicht auf andere Anwendungen innerhalbderselben Arbeitsfläche zu wechseln.
+---
 
-Programme wie Browser, Discord oder EDDiscovery auf einer separatenArbeitsfläche zu verwenden.
+# 🤝 Feedback
 
-⛽ Tritium-Position
+Fehlermeldungen, Screenshots und Logdateien helfen dabei, CTSVision weiter zu verbessern.
 
-Je nach Fleet Carrier und Warenbestand kann sich der Eintrag TRITIUMan einer unterschiedlichen Position innerhalb der Transferliste befinden.
+---
 
-Mit der Einstellung „Tritium-Position“ kann festgelegt werden, anwelcher Stelle CTSVision mit der Suche beginnen soll.
+# ❤️ Danke
 
-Funktionsweise
+Vielen Dank an alle Tester und Commander, die CTSVision ausprobieren und mit ihrem Feedback verbessern.
 
-Nachdem das Transferfenster geöffnet wurde, setzt CTSVision den Fokuszunächst mit einem einmaligen W in die Warenliste.
+**Fly safe, Commander! o7**
 
-Erst ab dieser Position beginnt die Zählung.
+**CMDR Faber38**
 
-Beispiele:
+---
 
-Einstellung
-
-Bedeutung
-
-0
-
-Erste Listenzeile
-
--5
-
-Fünf Zeilen nach unten
-
--20
-
-Zwanzig Zeilen nach unten
-
--44
-
-Vierundvierzig Zeilen nach unten
-
-3
-
-Drei Zeilen nach oben
-
-Anschließend prüft CTSVision den Bereich per OCR.
-
-Wird TRITIUM dort nicht gefunden, wird automatisch ein kleinerBereich oberhalb und unterhalb der eingestellten Position durchsucht.Dadurch muss die komplette Warenliste in den meisten Fällen nicht mehrdurchlaufen werden, was den Tankvorgang deutlich beschleunigt.
-
-📝 Feedback
-
-Fehlermeldungen, Screenshots und Logdateien helfen dabei, CTSVisionweiter zu verbessern.
-
-🛣️ Roadmap
-
-Version 1.0 ✅
-
-Vision-System
-
-OCR
-
-Fleet-Carrier-Sprünge
-
-Automatische Tankfunktion
-
-Tankstatus
-
-Route fortsetzen
-
-Geplante Erweiterungen
-
-Mehrere Schiffprofile
-
-Erweiterte Vision-Profile
-
-Weitere Komfortfunktionen
-
-❤️ Danke
-
-Vielen Dank für dein Interesse an CTSVision.
-
-Fly safe, Commander!
-
-CMDR Faber38
-
-Version: 1.0.1 Status: Stable
+**Version:** 1.0.1  
+**Status:** Stable
