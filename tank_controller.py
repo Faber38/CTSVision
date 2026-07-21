@@ -1003,17 +1003,20 @@ class TankController:
         threshold: float = 0.90,
     ) -> tuple[bool, str | None, float]:
         """
-        Sucht den Auswahlpfeil links in der gesamten sichtbaren Liste.
+        Bestimmt die aktive Transferzeile ausschließlich anhand des
+        orangefarbenen Auswahlbalkens.
+
+        OCR liefert die Position der Tritiumzeile. Die Farberkennung
+        liefert die Position der aktuell ausgewählten Zeile. Nur wenn
+        beide Zeilen übereinstimmen, gilt TRITIUM als sicher angewählt.
 
         Rückgabe:
             ausgewählt,
             erforderliche Taste ("w", "s" oder None),
-            Ähnlichkeit der Pfeilerkennung
+            Flächenanteil der erkannten Hervorhebung
 
-        Die Richtung wird aus den Y-Mittelpunkten von Pfeil und
-        Tritiumzeile bestimmt. Sämtliche Toleranzen werden aus der
-        OCR-Zeilenhöhe abgeleitet und skalieren deshalb mit der
-        Bildschirmauflösung und UI-Größe.
+        Das bisherige Referenzbild des kleinen Auswahlpfeils wird für
+        diese Entscheidung nicht mehr verwendet.
         """
 
         config = load_config()
@@ -1030,9 +1033,7 @@ class TankController:
             )
 
         try:
-            list_x = int(reference["x"])
             list_y = int(reference["y"])
-            list_width = int(reference["width"])
             list_height = int(reference["height"])
 
         except (KeyError, TypeError, ValueError) as exc:
@@ -1040,144 +1041,59 @@ class TankController:
                 "Die OCR-Referenz der Transferliste enthält " "ungültige Koordinaten."
             ) from exc
 
-        row_x = tritium_x / image_scale
         row_y = tritium_y / image_scale
         row_height = max(1.0, tritium_height / image_scale)
-
         tritium_center_y = list_y + row_y + row_height / 2.0
 
-        # Nur links vom Text suchen, aber über die komplette sichtbare
-        # Listenhöhe. So kann festgestellt werden, ob der Pfeil oberhalb
-        # oder unterhalb von TRITIUM steht.
-        horizontal_padding = row_height * 0.75
-        search_x = list_x
-        search_y = list_y
-        search_width = int(round(min(list_width, row_x + horizontal_padding)))
-        search_height = list_height
-
-        if search_width <= 0 or search_height <= 0:
-            raise TankControllerError(
-                "Der Suchbereich für den Auswahlpfeil ist ungültig."
-            )
-
         self._log(
-            "TankController: Auswahlpfeil wird links in der gesamten "
-            "sichtbaren Transferliste gesucht."
+            "TankController: Aktive Transferzeile wird über den "
+            "orangefarbenen Auswahlbalken bestimmt."
         )
-
         self._log(
             "TankController: Tritium-Zeile: "
             f"Y-Mitte={tritium_center_y:.1f}, "
             f"Zeilenhöhe={row_height:.1f}."
         )
 
-        self._log(
-            "TankController: Pfeil-Suchbereich: "
-            f"X={search_x}, Y={search_y}, "
-            f"Breite={search_width}, Höhe={search_height}."
+        highlight_center_y, highlight_score = self._find_selected_row_by_highlight(
+            list_y=list_y,
+            list_height=list_height,
+            row_height=row_height,
         )
 
-        result = self.vision.find_reference_in_region(
-            reference_name=self.SELECTION_ARROW_REFERENCE,
-            x=search_x,
-            y=search_y,
-            width=search_width,
-            height=search_height,
-        )
+        delta_y = highlight_center_y - tritium_center_y
 
-        similarity = float(result.similarity)
-
-        if similarity < threshold:
-            self._log(
-                "TankController: Auswahlpfeil-Erkennung: "
-                f"{similarity * 100:.2f} % (kein sicherer Treffer)."
-            )
-
-            self._log(
-                "TankController: Ersatzprüfung über den orangefarbenen "
-                "Auswahlbalken wird durchgeführt."
-            )
-
-            arrow_center_y, highlight_score = self._find_selected_row_by_highlight(
-                list_y=list_y,
-                list_height=list_height,
-                row_height=row_height,
-            )
-
-            position_source = "Auswahlbalken"
-
-        else:
-            match_y = self._match_value(
-                result,
-                "y",
-                "top",
-                "match_y",
-                "position_y",
-            )
-            match_height = self._match_value(
-                result,
-                "height",
-                "h",
-                "match_height",
-            )
-
-            if match_y is None:
-                raise TankControllerError(
-                    "Die Pfeilerkennung lieferte keine Y-Position. "
-                    "Die Bewegungsrichtung kann deshalb nicht sicher "
-                    "bestimmt werden."
-                )
-
-            # Die Match-Position ist relativ zum übergebenen Suchbereich.
-            if match_height is None or match_height <= 0:
-                match_height = row_height
-
-            arrow_center_y = search_y + match_y + match_height / 2.0
-            position_source = "Auswahlpfeil"
-
-        # Der Auswahlpfeil sitzt innerhalb einer Zeile optisch etwas
-        # oberhalb der Textmitte. Unterhalb der Tritium-Mitte darf er
-        # dagegen nur minimal liegen, weil dort bereits die nächste
-        # Listenzeile beginnt.
-        #
-        # Beide Toleranzen werden aus der OCR-Zeilenhöhe abgeleitet
-        # und skalieren dadurch mit Auflösung und UI-Größe.
-        upper_tolerance = row_height * 1.00
-        lower_tolerance = row_height * 0.20
-
-        delta_y = arrow_center_y - tritium_center_y
-
-        if similarity >= threshold:
-            self._log(
-                "TankController: Auswahlpfeil-Erkennung: "
-                f"{similarity * 100:.2f} % (Treffer)."
-            )
+        # Die OCR-Textbox liegt nicht immer exakt mittig im Auswahlbalken.
+        # Eine Toleranz von 60 % der erkannten Zeilenhöhe bleibt deutlich
+        # kleiner als der Abstand zweier benachbarter Listenzeilen.
+        row_tolerance = row_height * 0.60
 
         self._log(
-            f"TankController: Position über {position_source}: "
-            f"Y-Mitte={arrow_center_y:.1f}; "
-            f"Abstand zu TRITIUM={delta_y:+.1f}."
+            "TankController: Position über Auswahlbalken: "
+            f"Y-Mitte={highlight_center_y:.1f}; "
+            f"Abstand zu TRITIUM={delta_y:+.1f}; "
+            f"Toleranz=±{row_tolerance:.1f}."
         )
 
-        if -upper_tolerance <= delta_y <= lower_tolerance:
+        if abs(delta_y) <= row_tolerance:
             self._log(
-                "TankController: Der Auswahlpfeil befindet sich im "
-                "zulässigen Bereich der Tritiumzeile."
+                "TankController: Der orangefarbene Auswahlbalken liegt "
+                "auf der Tritiumzeile. „TRITIUM“ ist sicher angewählt."
             )
-            return True, None, similarity
+            return True, None, highlight_score
 
-        if arrow_center_y < tritium_center_y:
+        if highlight_center_y < tritium_center_y:
             self._log(
-                "TankController: Der Auswahlpfeil steht oberhalb von "
+                "TankController: Der Auswahlbalken steht oberhalb von "
                 "TRITIUM. Die Auswahl muss mit S nach unten bewegt werden."
             )
-            return False, "s", similarity
+            return False, "s", highlight_score
 
         self._log(
-            "TankController: Der Auswahlpfeil steht unterhalb von "
+            "TankController: Der Auswahlbalken steht unterhalb von "
             "TRITIUM. Die Auswahl muss mit W nach oben bewegt werden."
         )
-        return False, "w", similarity
+        return False, "w", highlight_score
 
     def find_tritium_in_transfer_menu(self) -> str:
         """Sucht TRITIUM rund um eine einstellbare Listenposition.
