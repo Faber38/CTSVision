@@ -6,12 +6,14 @@ from pathlib import Path
 
 from PySide6.QtCore import (
     QObject,
+    Qt,
     QThread,
     Signal,
     Slot,
 )
 from PySide6.QtWidgets import (
     QApplication,
+    QCheckBox,
     QFileDialog,
     QGridLayout,
     QGroupBox,
@@ -21,6 +23,7 @@ from PySide6.QtWidgets import (
     QMainWindow,
     QMessageBox,
     QPushButton,
+    QSpinBox,
     QTextEdit,
     QVBoxLayout,
     QWidget,
@@ -43,6 +46,65 @@ from settings_manager import (
 )
 from vision import Vision
 from vision_wizard import VisionWizardWindow
+from tank_controller import TankController, TankStatus
+from tank_wizard import TankWizardWindow
+
+
+class TankTestWorker(QObject):
+    """
+    Führt die Tankfunktions-Prüfung außerhalb des GUI-Threads aus.
+
+    Der aktuelle Prüfablauf:
+        - Menü 1 sicher erreichen
+        - Carrier-Dienste öffnen
+        - Tritiumdepot anwählen
+        - Tritiumdepot öffnen und per Vision bestätigen
+        - anschließend stoppen
+
+    Es wird noch kein Tritium übertragen.
+    """
+
+    log_message = Signal(str)
+    tank_status_changed = Signal(str)
+    completed = Signal()
+    failed = Signal(str)
+    finished = Signal()
+
+    @Slot()
+    def run(self) -> None:
+        try:
+            vision = Vision()
+
+            navigator = Navigator(
+                vision=vision,
+                press_key=press_key,
+            )
+
+            menu_controller = MenuController(
+                vision=vision,
+                navigator=navigator,
+                press_key=press_key,
+            )
+
+            tank_controller = TankController(
+                menu_controller=menu_controller,
+                navigator=navigator,
+                press_key=press_key,
+                log_message=self.log_message.emit,
+                status_changed=lambda status: self.tank_status_changed.emit(
+                    status.value
+                ),
+            )
+
+            tank_controller.run()
+
+            self.completed.emit()
+
+        except Exception as exc:
+            self.failed.emit(str(exc))
+
+        finally:
+            self.finished.emit()
 
 
 class AutomationWorker(QObject):
@@ -59,6 +121,7 @@ class AutomationWorker(QObject):
     """
 
     log_message = Signal(str)
+    tank_status_changed = Signal(str)
     completed = Signal(str)
     failed = Signal(str)
     finished = Signal()
@@ -98,6 +161,64 @@ class AutomationWorker(QObject):
         self.log_message.emit("Stop wurde angefordert.")
 
         return True
+
+    def _run_tank_routine(
+        self,
+        *,
+        tank_finished_event: threading.Event,
+        tank_result: dict[str, object],
+    ) -> None:
+        """
+        Führt die Tankroutine parallel zur Abkühlzeit aus.
+
+        Das Ergebnis wird in tank_result abgelegt. Das Event wird
+        unabhängig von Erfolg oder Fehler immer gesetzt.
+        """
+
+        try:
+            self.log_message.emit(
+                "Automatische Tankroutine wird während der Abkühlzeit gestartet."
+            )
+
+            vision = Vision()
+
+            navigator = Navigator(
+                vision=vision,
+                press_key=press_key,
+            )
+
+            menu_controller = MenuController(
+                vision=vision,
+                navigator=navigator,
+                press_key=press_key,
+            )
+
+            tank_controller = TankController(
+                menu_controller=menu_controller,
+                navigator=navigator,
+                press_key=press_key,
+                log_message=self.log_message.emit,
+                status_changed=lambda status: self.tank_status_changed.emit(
+                    status.value
+                ),
+            )
+
+            tank_controller.run()
+
+            tank_result["success"] = True
+
+            self.log_message.emit("Automatische Tankroutine wurde erfolgreich beendet.")
+
+        except Exception as exc:
+            tank_result["success"] = False
+            tank_result["error"] = exc
+
+            self.log_message.emit(
+                "Automatische Tankroutine ist fehlgeschlagen: " f"{exc}"
+            )
+
+        finally:
+            tank_finished_event.set()
 
     @Slot()
     def run(self) -> None:
@@ -342,8 +463,48 @@ class AutomationWorker(QObject):
 
             cooldown_seconds = 240
 
+            auto_refuel_enabled = bool(
+                self.settings.get(
+                    "auto_refuel_enabled",
+                    True,
+                )
+            )
+
+            tank_finished_event: threading.Event | None = None
+            tank_result: dict[str, object] | None = None
+            tank_thread: threading.Thread | None = None
+
+            if auto_refuel_enabled:
+                tank_finished_event = threading.Event()
+                tank_result = {
+                    "success": False,
+                    "error": None,
+                }
+
+                tank_thread = threading.Thread(
+                    target=self._run_tank_routine,
+                    kwargs={
+                        "tank_finished_event": tank_finished_event,
+                        "tank_result": tank_result,
+                    },
+                    name="CTSVision-TankRoutine",
+                    daemon=True,
+                )
+
+                tank_thread.start()
+
+                self.log_message.emit(
+                    "Die Tankroutine läuft parallel zur vierminütigen Abkühlzeit."
+                )
+
+            else:
+                self.log_message.emit(
+                    "Automatisches Betanken ist deaktiviert. "
+                    "Es wird nur die Abkühlzeit abgewartet."
+                )
+
             self.log_message.emit(
-                "Abkühlzeit läuft: 4 Minuten " "bis zum nächsten Sprung."
+                "Abkühlzeit läuft: 4 Minuten bis zum nächsten Sprung."
             )
 
             for remaining_seconds in range(
@@ -360,11 +521,67 @@ class AutomationWorker(QObject):
                         60,
                     )
 
-                    self.log_message.emit(
-                        f"Abkühlzeit: " f"{minutes:02d}:{seconds:02d}"
-                    )
+                    if auto_refuel_enabled and tank_finished_event is not None:
+                        tank_status = (
+                            "Tankroutine beendet"
+                            if tank_finished_event.is_set()
+                            else "Tankroutine läuft"
+                        )
+
+                        self.log_message.emit(
+                            f"Abkühlzeit: {minutes:02d}:{seconds:02d} – "
+                            f"{tank_status}"
+                        )
+                    else:
+                        self.log_message.emit(
+                            f"Abkühlzeit: {minutes:02d}:{seconds:02d}"
+                        )
 
                 time.sleep(1)
+
+            self.log_message.emit("Die Abkühlzeit ist beendet.")
+
+            if auto_refuel_enabled:
+                if tank_finished_event is None or tank_result is None:
+                    raise RuntimeError(
+                        "Interner Fehler: Die Tankroutine wurde nicht korrekt vorbereitet."
+                    )
+
+                if not tank_finished_event.is_set():
+                    self.log_message.emit(
+                        "Die Tankroutine läuft noch. "
+                        "Der nächste Sprung bleibt gesperrt, bis sie beendet ist."
+                    )
+
+                while not tank_finished_event.wait(timeout=1.0):
+                    if self._check_stop():
+                        return
+
+                    self.log_message.emit(
+                        "Warte auf das Ende der Tankroutine. "
+                        "Es wird noch kein neuer Sprung gestartet."
+                    )
+
+                if tank_thread is not None:
+                    tank_thread.join(timeout=1.0)
+
+                if not bool(tank_result.get("success", False)):
+                    error = tank_result.get("error")
+
+                    raise RuntimeError(
+                        "Der nächste Sprung wurde gesperrt, weil die "
+                        f"Tankroutine fehlgeschlagen ist: {error}"
+                    )
+
+                self.log_message.emit(
+                    "Tankroutine und Abkühlzeit sind beendet. "
+                    "Der nächste Sprung ist jetzt freigegeben."
+                )
+
+            else:
+                self.log_message.emit(
+                    "Abkühlzeit beendet. " "Der nächste Sprung ist jetzt freigegeben."
+                )
 
             self.route_manager.mark_current_completed()
 
@@ -393,9 +610,13 @@ class AutomationWindow(QMainWindow):
         self.route_info_window: RouteInfoWindow | None = None
 
         self.vision_wizard_window: VisionWizardWindow | None = None
+        self.tank_wizard_window: TankWizardWindow | None = None
 
         self.automation_thread: QThread | None = None
         self.automation_worker: AutomationWorker | None = None
+
+        self.tank_test_thread: QThread | None = None
+        self.tank_test_worker: TankTestWorker | None = None
 
         self.start_next_jump = False
         self.settings = load_settings()
@@ -449,12 +670,19 @@ class AutomationWindow(QMainWindow):
 
         layout = QVBoxLayout(central)
 
+        # Oberer Bereich: Inhalte links, Assistenten rechts
+        top_layout = QHBoxLayout()
+        layout.addLayout(top_layout)
+
+        content_layout = QVBoxLayout()
+        top_layout.addLayout(content_layout, 1)
+
         # --------------------------------------------------
         # Route
         # --------------------------------------------------
 
         route_box = QGroupBox("Route")
-        layout.addWidget(route_box)
+        content_layout.addWidget(route_box)
 
         route_layout = QGridLayout(route_box)
 
@@ -462,36 +690,15 @@ class AutomationWindow(QMainWindow):
         self.route_edit.setReadOnly(True)
 
         self.route_button = QPushButton("Route auswählen...")
-
         self.route_button.clicked.connect(self.select_route)
 
         self.route_info_button = QPushButton("Routen-Info")
-
         self.route_info_button.clicked.connect(self.open_route_info)
 
-        route_layout.addWidget(
-            QLabel("Datei:"),
-            0,
-            0,
-        )
-
-        route_layout.addWidget(
-            self.route_edit,
-            0,
-            1,
-        )
-
-        route_layout.addWidget(
-            self.route_button,
-            0,
-            2,
-        )
-
-        route_layout.addWidget(
-            self.route_info_button,
-            0,
-            3,
-        )
+        route_layout.addWidget(QLabel("Datei:"), 0, 0)
+        route_layout.addWidget(self.route_edit, 0, 1)
+        route_layout.addWidget(self.route_button, 0, 2)
+        route_layout.addWidget(self.route_info_button, 0, 3)
 
         # --------------------------------------------------
         # Journal
@@ -501,35 +708,18 @@ class AutomationWindow(QMainWindow):
         self.journal_directory_edit.setReadOnly(True)
 
         self.journal_button = QPushButton("Journalordner...")
-
         self.journal_button.clicked.connect(self.select_journal_directory)
 
-        route_layout.addWidget(
-            QLabel("Journalordner:"),
-            1,
-            0,
-        )
-
-        route_layout.addWidget(
-            self.journal_directory_edit,
-            1,
-            1,
-            1,
-            2,
-        )
-
-        route_layout.addWidget(
-            self.journal_button,
-            1,
-            3,
-        )
+        route_layout.addWidget(QLabel("Journalordner:"), 1, 0)
+        route_layout.addWidget(self.journal_directory_edit, 1, 1, 1, 2)
+        route_layout.addWidget(self.journal_button, 1, 3)
 
         # --------------------------------------------------
         # Informationen
         # --------------------------------------------------
 
         info_box = QGroupBox("Informationen")
-        layout.addWidget(info_box)
+        content_layout.addWidget(info_box)
 
         info_layout = QGridLayout(info_box)
 
@@ -537,80 +727,128 @@ class AutomationWindow(QMainWindow):
         self.progress_label = QLabel("-")
         self.target_label = QLabel("-")
 
-        info_layout.addWidget(
-            QLabel("Anzahl Ziele:"),
-            0,
-            0,
-        )
-
-        info_layout.addWidget(
-            self.total_label,
-            0,
-            1,
-        )
-
-        info_layout.addWidget(
-            QLabel("Fortschritt:"),
-            1,
-            0,
-        )
-
-        info_layout.addWidget(
-            self.progress_label,
-            1,
-            1,
-        )
-
-        info_layout.addWidget(
-            QLabel("Aktuelles Ziel:"),
-            2,
-            0,
-        )
-
-        info_layout.addWidget(
-            self.target_label,
-            2,
-            1,
-        )
+        info_layout.addWidget(QLabel("Anzahl Ziele:"), 0, 0)
+        info_layout.addWidget(self.total_label, 0, 1)
+        info_layout.addWidget(QLabel("Fortschritt:"), 1, 0)
+        info_layout.addWidget(self.progress_label, 1, 1)
+        info_layout.addWidget(QLabel("Aktuelles Ziel:"), 2, 0)
+        info_layout.addWidget(self.target_label, 2, 1)
 
         # --------------------------------------------------
-        # Buttons
+        # Tanken
+        # --------------------------------------------------
+
+        tank_box = QGroupBox("Tanken")
+        content_layout.addWidget(tank_box)
+
+        tank_layout = QHBoxLayout(tank_box)
+
+        self.auto_refuel_checkbox = QCheckBox("Carrier automatisch betanken")
+        self.auto_refuel_checkbox.setToolTip(
+            "Ist diese Option aktiviert, wird die Tankroutine nach einem Sprung "
+            "parallel zur vierminütigen Abkühlzeit ausgeführt. "
+            "Ein neuer Sprung startet erst, wenn beide Vorgänge beendet sind."
+        )
+
+        self.refuel_threshold_spinbox = QSpinBox()
+        self.refuel_threshold_spinbox.setRange(1, 105)
+        self.refuel_threshold_spinbox.setSuffix(" %")
+        self.refuel_threshold_spinbox.setToolTip(
+            "Liegt der Carrier-Tank unter diesem Wert, "
+            "wird der Tankvorgang gestartet."
+        )
+
+        auto_refuel_enabled = bool(self.settings.get("auto_refuel_enabled", True))
+
+        refuel_threshold = int(self.settings.get("carrier_refuel_threshold", 20))
+
+        refuel_threshold = max(1, min(100, refuel_threshold))
+
+        self.auto_refuel_checkbox.setChecked(auto_refuel_enabled)
+        self.refuel_threshold_spinbox.setValue(refuel_threshold)
+        self.refuel_threshold_spinbox.setEnabled(auto_refuel_enabled)
+
+        self.auto_refuel_checkbox.toggled.connect(self._on_auto_refuel_toggled)
+        self.refuel_threshold_spinbox.valueChanged.connect(self._save_tank_settings)
+
+        tank_layout.addWidget(self.auto_refuel_checkbox)
+        tank_layout.addSpacing(15)
+        tank_layout.addWidget(QLabel("Niedrigster Tankfüllstand:"))
+        tank_layout.addWidget(self.refuel_threshold_spinbox)
+        tank_layout.addStretch()
+
+        # --------------------------------------------------
+        # Assistenten und Prüfungen rechts oben
+        # --------------------------------------------------
+
+        assistant_box = QGroupBox("Assistenten und Prüfung")
+        assistant_box.setMinimumWidth(190)
+        top_layout.addWidget(assistant_box)
+
+        assistant_layout = QVBoxLayout(assistant_box)
+
+        self.vision_wizard_button = QPushButton("Sprung Wizard")
+        self.vision_wizard_button.setMinimumHeight(42)
+        self.vision_wizard_button.clicked.connect(self.open_vision_wizard)
+
+        self.tank_wizard_button = QPushButton("Tank Wizard")
+        self.tank_wizard_button.setMinimumHeight(42)
+        self.tank_wizard_button.clicked.connect(self.open_tank_wizard)
+
+        self.tank_test_button = QPushButton("Tankfunktion prüfen")
+        self.tank_test_button.setMinimumHeight(42)
+        self.tank_test_button.setToolTip(
+            "Prüft die automatische Tankfunktion vor dem Start der Route. "
+            "Der aktuelle Test öffnet nur das Tritiumdepot und "
+            "überträgt noch kein Tritium."
+        )
+        self.tank_test_button.clicked.connect(self.start_tank_test)
+
+        assistant_layout.addWidget(self.vision_wizard_button)
+        assistant_layout.addWidget(self.tank_wizard_button)
+        assistant_layout.addWidget(self.tank_test_button)
+
+        assistant_layout.addSpacing(8)
+
+        self.tank_status_title = QLabel("Tankstatus")
+        self.tank_status_title.setStyleSheet("font-weight: bold;")
+
+        self.tank_status_label = QLabel()
+        self.tank_status_label.setMinimumHeight(32)
+        self.tank_status_label.setAlignment(
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
+        )
+
+        assistant_layout.addWidget(self.tank_status_title)
+        assistant_layout.addWidget(self.tank_status_label)
+
+        self.set_tank_status(TankStatus.IDLE.value)
+
+        assistant_layout.addStretch()
+
+        # --------------------------------------------------
+        # Hauptsteuerung
         # --------------------------------------------------
 
         button_layout = QHBoxLayout()
 
         self.restart_button = QPushButton("Route neu starten")
-
         self.restart_button.clicked.connect(self.restart_route)
 
         self.resume_button = QPushButton("Route fortsetzen")
-
         self.resume_button.clicked.connect(self.refresh_route_display)
 
-        self.vision_wizard_button = QPushButton("Vision Wizard")
-
-        self.vision_wizard_button.clicked.connect(self.open_vision_wizard)
-
         self.start_button = QPushButton("Automatik starten")
-
         self.start_button.clicked.connect(self.start_automation)
 
         self.stop_button = QPushButton("Stop")
-
         self.stop_button.clicked.connect(self.stop_automation)
-
         self.stop_button.setEnabled(False)
 
         button_layout.addWidget(self.restart_button)
-
         button_layout.addWidget(self.resume_button)
-
-        button_layout.addWidget(self.vision_wizard_button)
-
         button_layout.addStretch()
-
         button_layout.addWidget(self.start_button)
-
         button_layout.addWidget(self.stop_button)
 
         layout.addLayout(button_layout)
@@ -620,7 +858,7 @@ class AutomationWindow(QMainWindow):
         # --------------------------------------------------
 
         status_box = QGroupBox("Status")
-        layout.addWidget(status_box)
+        layout.addWidget(status_box, 1)
 
         status_layout = QVBoxLayout(status_box)
 
@@ -632,13 +870,9 @@ class AutomationWindow(QMainWindow):
         self.log("CTSVision Carrier Automation gestartet.")
 
         self.journal = JournalMonitor()
-
         self.journal.event_received.connect(self.on_journal_event)
-
         self.journal.status_changed.connect(self.on_journal_status)
-
         self.journal.error_occurred.connect(self.on_journal_error)
-
         self.journal.start()
 
     # --------------------------------------------------
@@ -648,6 +882,87 @@ class AutomationWindow(QMainWindow):
         text: str,
     ) -> None:
         self.status_log.append(text)
+
+    # --------------------------------------------------
+
+    @Slot(str)
+    def set_tank_status(
+        self,
+        status_text: str,
+    ) -> None:
+        """Aktualisiert die farbige Tankstatus-Anzeige."""
+
+        styles = {
+            TankStatus.IDLE.value: (
+                "●  Bereit",
+                "#6b7280",
+                "#f3f4f6",
+            ),
+            TankStatus.RUNNING.value: (
+                "●  Tankvorgang läuft",
+                "#b7791f",
+                "#fff8dc",
+            ),
+            TankStatus.SUCCESS.value: (
+                "●  Erfolgreich",
+                "#2f855a",
+                "#e6ffed",
+            ),
+            TankStatus.ERROR.value: (
+                "●  Fehler",
+                "#c53030",
+                "#fff0f0",
+            ),
+        }
+
+        text, foreground, background = styles.get(
+            status_text,
+            (
+                f"●  {status_text}",
+                "#6b7280",
+                "#f3f4f6",
+            ),
+        )
+
+        self.tank_status_label.setText(text)
+        self.tank_status_label.setStyleSheet(
+            "QLabel {"
+            f"color: {foreground};"
+            f"background-color: {background};"
+            "border: 1px solid #b8b8b8;"
+            "border-radius: 4px;"
+            "padding: 5px 8px;"
+            "font-weight: bold;"
+            "}"
+        )
+
+    @Slot(bool)
+    def _on_auto_refuel_toggled(
+        self,
+        enabled: bool,
+    ) -> None:
+        """
+        Aktiviert beziehungsweise deaktiviert die Einstellung
+        für den Mindestfüllstand und speichert die Tankoptionen.
+        """
+
+        self.refuel_threshold_spinbox.setEnabled(enabled)
+        self._save_tank_settings()
+
+    @Slot()
+    def _save_tank_settings(self) -> None:
+        """
+        Speichert die Tankoptionen in der bestehenden
+        CTSVision-Konfigurationsdatei.
+        """
+
+        self.settings["auto_refuel_enabled"] = self.auto_refuel_checkbox.isChecked()
+
+        self.settings["carrier_refuel_threshold"] = (
+            self.refuel_threshold_spinbox.value()
+        )
+
+        save_settings(self.settings)
 
     # --------------------------------------------------
 
@@ -845,6 +1160,23 @@ class AutomationWindow(QMainWindow):
 
     # --------------------------------------------------
 
+    def open_tank_wizard(self) -> None:
+        """
+        Öffnet den CTS Tank Wizard.
+
+        Ist das Fenster bereits geöffnet, wird es nur
+        wieder in den Vordergrund geholt.
+        """
+
+        if self.tank_wizard_window is None:
+            self.tank_wizard_window = TankWizardWindow()
+
+        self.tank_wizard_window.show()
+        self.tank_wizard_window.raise_()
+        self.tank_wizard_window.activateWindow()
+
+    # --------------------------------------------------
+
     def restart_route(self) -> None:
         """
         Setzt den gespeicherten Fortschritt auf null.
@@ -901,6 +1233,150 @@ class AutomationWindow(QMainWindow):
 
     # --------------------------------------------------
 
+    def start_tank_test(self) -> None:
+        """
+        Startet die manuelle Tankfunktions-Prüfung.
+
+        Die Prüfung verwendet exakt dieselben Komponenten wie
+        der spätere automatische Tankablauf. Elite und CTSVision
+        müssen sich dabei auf derselben aktiven Arbeitsfläche befinden.
+        """
+
+        if self.automation_thread is not None:
+            QMessageBox.information(
+                self,
+                "Automatik läuft",
+                (
+                    "Während die Sprungautomatik läuft, "
+                    "kann die Tankfunktion nicht geprüft werden."
+                ),
+            )
+            return
+
+        if self.tank_test_thread is not None:
+            self.log("Die Tankfunktions-Prüfung läuft bereits.")
+            return
+
+        self.log("--------------------------------")
+        self.log("Tankfunktions-Prüfung wird gestartet.")
+        self.log(
+            "Die Prüfung öffnet das Tritiumdepot. "
+            "Es wird noch kein Tritium übertragen."
+        )
+
+        self._set_tank_test_running(True)
+
+        thread = QThread(self)
+        worker = TankTestWorker()
+
+        worker.moveToThread(thread)
+
+        thread.started.connect(worker.run)
+
+        worker.log_message.connect(self.log)
+        worker.tank_status_changed.connect(self.set_tank_status)
+        worker.completed.connect(self.tank_test_completed)
+        worker.failed.connect(self.tank_test_failed)
+        worker.finished.connect(thread.quit)
+
+        thread.finished.connect(self.tank_test_thread_finished)
+        thread.finished.connect(worker.deleteLater)
+        thread.finished.connect(thread.deleteLater)
+
+        self.tank_test_thread = thread
+        self.tank_test_worker = worker
+
+        thread.start()
+
+    # --------------------------------------------------
+
+    @Slot()
+    def tank_test_completed(self) -> None:
+        """
+        Wird aufgerufen, wenn das Tritiumdepot erfolgreich
+        geöffnet und erkannt wurde.
+        """
+
+        self.log(
+            "Tankprüfung erfolgreich: "
+            "Das Tritiumdepot wurde geöffnet und sicher erkannt."
+        )
+        self.log(
+            "Die automatische Tankfunktion ist für diesen " "Prüfschritt einsatzbereit."
+        )
+
+    # --------------------------------------------------
+
+    @Slot(str)
+    def tank_test_failed(
+        self,
+        error_message: str,
+    ) -> None:
+        """
+        Zeigt einen Fehler der Tankfunktions-Prüfung an.
+        """
+
+        self.log(f"Tankprüfung fehlgeschlagen: {error_message}")
+        self.log(
+            "Die Carrier-Automatik sollte erst gestartet werden, "
+            "wenn die Ursache behoben ist."
+        )
+
+        QMessageBox.critical(
+            self,
+            "Tankprüfung fehlgeschlagen",
+            error_message,
+        )
+
+    # --------------------------------------------------
+
+    @Slot()
+    def tank_test_thread_finished(self) -> None:
+        """
+        Räumt den Worker der Tankfunktions-Prüfung auf.
+        """
+
+        self.tank_test_thread = None
+        self.tank_test_worker = None
+
+        self._set_tank_test_running(False)
+
+        self.log("Tankfunktions-Prüfung wurde beendet.")
+
+    # --------------------------------------------------
+
+    def _set_tank_test_running(
+        self,
+        running: bool,
+    ) -> None:
+        """
+        Sperrt während der Tankfunktions-Prüfung alle
+        Bedienelemente, die einen zweiten Ablauf starten könnten.
+        """
+
+        self.start_button.setEnabled(not running)
+        self.tank_test_button.setEnabled(not running)
+
+        self.route_button.setEnabled(not running)
+        self.restart_button.setEnabled(not running)
+        self.resume_button.setEnabled(not running)
+
+        self.vision_wizard_button.setEnabled(not running)
+        self.tank_wizard_button.setEnabled(not running)
+
+        self.auto_refuel_checkbox.setEnabled(not running)
+
+        self.refuel_threshold_spinbox.setEnabled(
+            not running and self.auto_refuel_checkbox.isChecked()
+        )
+
+        if running:
+            self.tank_test_button.setText("Tankprüfung läuft...")
+        else:
+            self.tank_test_button.setText("Tankfunktion prüfen")
+
+    # --------------------------------------------------
+
     def start_automation(self) -> None:
         """
         Startet den ersten vollständigen GUI-Testlauf.
@@ -911,6 +1387,17 @@ class AutomationWindow(QMainWindow):
 
         if self.automation_thread is not None:
             self.log("Die Automatik läuft bereits.")
+            return
+
+        if self.tank_test_thread is not None:
+            QMessageBox.information(
+                self,
+                "Tankprüfung läuft",
+                (
+                    "Während die Tankfunktion geprüft wird, "
+                    "kann die Sprungautomatik nicht gestartet werden."
+                ),
+            )
             return
 
         if self.route_manager is None:
@@ -947,6 +1434,7 @@ class AutomationWindow(QMainWindow):
         thread.started.connect(worker.run)
 
         worker.log_message.connect(self.log)
+        worker.tank_status_changed.connect(self.set_tank_status)
 
         worker.completed.connect(self.automation_completed)
 
@@ -1073,8 +1561,17 @@ class AutomationWindow(QMainWindow):
         self.route_button.setEnabled(not running)
 
         self.restart_button.setEnabled(not running)
+        self.resume_button.setEnabled(not running)
 
         self.vision_wizard_button.setEnabled(not running)
+        self.tank_wizard_button.setEnabled(not running)
+        self.tank_test_button.setEnabled(not running)
+
+        self.auto_refuel_checkbox.setEnabled(not running)
+
+        self.refuel_threshold_spinbox.setEnabled(
+            not running and self.auto_refuel_checkbox.isChecked()
+        )
 
         if running:
             self.start_button.setText("Automatik läuft...")

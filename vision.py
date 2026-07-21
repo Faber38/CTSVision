@@ -422,6 +422,41 @@ class Vision:
             float(best_result.similarity),
         )
 
+    def find_reference_in_region(
+        self,
+        *,
+        reference_name: str,
+        x: int,
+        y: int,
+        width: int,
+        height: int,
+    ):
+        """
+        Sucht eine einzelne Referenz innerhalb eines frei
+        definierten Bildschirmbereiches.
+
+        Rückgabe:
+            TemplateMatchResult
+        """
+
+        reference = self._get_reference(reference_name)
+        reference_path = self._get_reference_path(reference)
+
+        window = self._get_elite_window()
+
+        search_image = capture_window_region(
+            window=window,
+            x=x,
+            y=y,
+            width=width,
+            height=height,
+        )
+
+        return find_template(
+            template_path=reference_path,
+            search_image=search_image,
+        )
+
     def get_state(
         self,
         *,

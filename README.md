@@ -1,105 +1,119 @@
+![CTSVision Header](docs/ctsvision_banner.png)
+
 # 🚀 CTSVision
 
-Willkommen bei **CTSVision**!
+## Automatisierung für Fleet Carrier in Elite Dangerous
 
-Vielen Dank, dass du dir die Zeit nimmst, CTSVision zu testen.
+**CTSVision** ist ein Linux-Programm zur Automatisierung von
+Fleet-Carrier-Abläufen in *Elite Dangerous*.
 
-CTSVision befindet sich derzeit noch in der Entwicklung. Mit deinem Test hilfst du dabei, das Programm auf unterschiedlichen Systemen zuverlässiger und stabiler zu machen.
+Im Mittelpunkt stehen **Computer Vision**, **OCR** und die Auswertung
+des Elite-Journals. Dadurch werden Spielzustände erkannt und
+Entscheidungen anhand des tatsächlichen Bildschirminhalts getroffen --
+nicht anhand fester Zeitabläufe.
 
----
+------------------------------------------------------------------------
+
+# ✨ Funktionen
+
+-   Automatische Fleet-Carrier-Sprünge
+-   Vision-basierte Menünavigation
+-   OCR-Auswertung des Tritium-Tankfüllstands
+-   Automatisches Betanken des Fleet Carriers
+-   Tankfunktion separat testbar
+-   Statusanzeige des Tankvorgangs
+-   Fortsetzen einer gespeicherten Route
+-   Ausführung unter Linux (getestet mit Pop!\_OS)
+
+------------------------------------------------------------------------
 
 # 📦 Installation
 
-Beim **ersten Start** muss CTSVision einmalig eingerichtet werden.
+Erstinstallation:
 
-Führe dazu im Projektordner einfach folgende Datei aus:
-
-```bash
-install.sh
+``` bash
+./install.sh
 ```
 
-Während der Installation wird automatisch:
+Programm starten:
 
-- eine lokale Python-Umgebung erstellt,
-- alle benötigten Python-Bibliotheken installiert,
-- CTSVision für den ersten Start vorbereitet.
-
-> 💡 Es werden keine Systemdateien verändert und keine Programme systemweit installiert.
-
-Dieser Schritt ist nur einmal erforderlich.
-
----
-
-# ▶️ Programm starten
-
-Nach erfolgreicher Installation wird CTSVision zukünftig immer über
-
-```bash
-start.sh
+``` bash
+./start.sh
 ```
 
-gestartet.
+------------------------------------------------------------------------
 
-Eine erneute Installation ist normalerweise nicht notwendig.
+# 🖼️ Ersteinrichtung
 
----
+Vor dem ersten Automatiklauf müssen mit dem **Vision Wizard** die
+Referenzbilder erstellt werden.
 
-# 🖼️ Erste Einrichtung
+Da sich Monitore, Auflösungen und Grafikeinstellungen unterscheiden,
+geschieht dies einmalig auf jedem Rechner.
 
-Vor dem ersten Automatiklauf müssen die Referenzbilder erstellt werden.
+------------------------------------------------------------------------
 
-Dies geschieht direkt innerhalb von CTSVision über:
+# 💡 Empfehlung
 
-**Werkzeuge → Referenzbilder erstellen**
+Für die höchste Erkennungsgenauigkeit sollte **immer dasselbe Schiff**
+für Carrier-Sprünge und das automatische Betanken verwendet werden.
 
-Da sich Monitore, Auflösungen, Skalierungen und Grafikeinstellungen unterscheiden, müssen diese Referenzbilder für jeden Rechner individuell erstellt werden.
+Unterschiedliche Schiffe besitzen leicht abweichende Cockpitansichten.
+Schon kleine Pixelverschiebungen können die Bilderkennung beeinflussen.
 
----
+Daher wird empfohlen:
 
-## 🚀 Erster Test
+-   immer dasselbe Schiff verwenden
+-   während eines Automatiklaufs nicht das Schiff wechseln
+-   nach einem dauerhaften Schiffwechsel die Referenzbilder neu
+    erstellen
 
-Nach der Einrichtung ist CTSVision einsatzbereit.
+------------------------------------------------------------------------
 
-Für einen ersten Funktionstest:
+# 🖥️ Systemvoraussetzungen
 
-1. Elite Dangerous starten.
-2. Eine Route auswählen.
-3. Den Automatiklauf starten.
-4. CTSVision beobachten.
+-   Linux
+-   Python 3.11 oder neuer
+-   X11
+-   Elite Dangerous: Odyssey
 
----
-## Systemvoraussetzungen
-
-- Linux (derzeit getestet unter Pop!_OS)
-- Python 3.11 oder neuer
-- Elite Dangerous: Odyssey
-
----
+------------------------------------------------------------------------
 
 # 📝 Feedback
 
-Sollte etwas nicht wie erwartet funktionieren, freue ich mich über eine kurze Rückmeldung.
+Fehlermeldungen, Screenshots und Logdateien helfen dabei, CTSVision
+weiter zu verbessern.
 
-Hilfreich sind beispielsweise:
+------------------------------------------------------------------------
 
-- 📸 Screenshot
-- 📝 kurze Beschreibung
-- ⚠️ Fehlermeldung
-- 📄 Logdatei (falls vorhanden)
+# 🛣️ Roadmap
 
-CTSVision befindet sich derzeit in einer frühen Alpha-Phase.
-Auch kleine Auffälligkeiten oder Verbesserungsvorschläge sind willkommen.
+## Version 1.0 ✅
 
----
+-   Vision-System
+-   OCR
+-   Fleet-Carrier-Sprünge
+-   Automatische Tankfunktion
+-   Tankstatus
+-   Route fortsetzen
 
-# ❤️ Vielen Dank
+## Geplante Erweiterungen
 
-Vielen Dank für deine Unterstützung!
+-   Mehrere Schiffprofile
+-   Erweiterte Vision-Profile
+-   Weitere Komfortfunktionen
 
-Fly safe, Commander!
+------------------------------------------------------------------------
 
-**Cmdr Faber38**
+# ❤️ Danke
 
----
+Vielen Dank für dein Interesse an CTSVision.
 
-**Version:** 0.1.0 Alpha
+**Fly safe, Commander!**
+
+**CMDR Faber38**
+
+------------------------------------------------------------------------
+
+**Version:** 1.0.0\
+**Status:** Stable

@@ -224,6 +224,104 @@
       "width": 250,
       "height": 20,
       "image": "galaxiekarte_erstes_suchergebnis.png"
+    },
+    "tank_tritium_depot_open": {
+      "x": 780,
+      "y": 250,
+      "width": 350,
+      "height": 270,
+      "image": "tank_tritium_depot_open.png"
+    },
+    "ocr_tank_fuel_level": {
+      "x": 574,
+      "y": 529,
+      "width": 773,
+      "height": 75,
+      "image": "ocr_tank_fuel_level.png"
+    },
+    "tank_tritium_spenden_aktiv": {
+      "x": 620,
+      "y": 667,
+      "width": 684,
+      "height": 221,
+      "image": "tank_tritium_spenden_aktiv.png"
+    },
+    "tank_depot_bestaetigen_aktiv": {
+      "x": 700,
+      "y": 800,
+      "width": 500,
+      "height": 100,
+      "image": "tank_depot_bestaetigen_aktiv.png"
+    },
+    "tank_abbrechen_aktiv": {
+      "x": 700,
+      "y": 800,
+      "width": 500,
+      "height": 99,
+      "image": "tank_abbrechen_aktiv.png"
+    },
+    "tank_tritium_verlassen_aktiv": {
+      "x": 579,
+      "y": 913,
+      "width": 61,
+      "height": 59,
+      "image": "tank_tritium_verlassen_aktiv.png"
+    },
+    "tank_kein_tritium_verfuegbar": {
+      "x": 588,
+      "y": 646,
+      "width": 744,
+      "height": 250,
+      "image": "tank_kein_tritium_verfuegbar.png"
+    },
+    "tank_inventar_aktiv": {
+      "x": 611,
+      "y": 230,
+      "width": 1087,
+      "height": 66,
+      "image": "tank_inventar_aktiv.png"
+    },
+    "tank_filter_aktiv": {
+      "x": 1090,
+      "y": 242,
+      "width": 578,
+      "height": 112,
+      "image": "tank_filter_aktiv.png"
+    },
+    "tank_transfer_aktiv": {
+      "x": 1090,
+      "y": 242,
+      "width": 578,
+      "height": 112,
+      "image": "tank_transfer_aktiv.png"
+    },
+    "ocr_transfer_item_list": {
+      "x": 620,
+      "y": 217,
+      "width": 1073,
+      "height": 612,
+      "image": "ocr_transfer_item_list.png"
+    },
+    "tank_transfer_abbrechen_aktiv": {
+      "x": 620,
+      "y": 750,
+      "width": 110,
+      "height": 45,
+      "image": "tank_transfer_abbrechen_aktiv.png"
+    },
+    "tank_transfer_bestaetigen_aktiv": {
+      "x": 750,
+      "y": 760,
+      "width": 110,
+      "height": 45,
+      "image": "tank_transfer_bestaetigen_aktiv.png"
+    },
+    "tank_auswahlpfeil_links": {
+      "x": 734,
+      "y": 514,
+      "width": 36,
+      "height": 31,
+      "image": "tank_auswahlpfeil_links.png"
     }
   }
 }
