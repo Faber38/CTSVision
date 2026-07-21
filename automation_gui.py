@@ -758,23 +758,46 @@ class AutomationWindow(QMainWindow):
             "wird der Tankvorgang gestartet."
         )
 
+        self.tritium_position_spinbox = QSpinBox()
+        self.tritium_position_spinbox.setRange(-50, 50)
+        self.tritium_position_spinbox.setToolTip(
+            "Erwartete Position von TRITIUM in der Transferliste. "
+            "Positive Werte bewegen mit W nach oben, negative Werte "
+            "mit S nach unten. Bei 0 wird die aktuelle Position geprüft. "
+            "Danach sucht CTSVision zusätzlich 2 Zeilen nach oben und "
+            "5 Zeilen nach unten."
+        )
+
         auto_refuel_enabled = bool(self.settings.get("auto_refuel_enabled", True))
 
         refuel_threshold = int(self.settings.get("carrier_refuel_threshold", 20))
 
-        refuel_threshold = max(1, min(100, refuel_threshold))
+        refuel_threshold = max(1, min(105, refuel_threshold))
+
+        try:
+            tritium_position = int(self.settings.get("tritium_list_position", 0))
+        except (TypeError, ValueError):
+            tritium_position = 0
+
+        tritium_position = max(-50, min(50, tritium_position))
 
         self.auto_refuel_checkbox.setChecked(auto_refuel_enabled)
         self.refuel_threshold_spinbox.setValue(refuel_threshold)
+        self.tritium_position_spinbox.setValue(tritium_position)
         self.refuel_threshold_spinbox.setEnabled(auto_refuel_enabled)
+        self.tritium_position_spinbox.setEnabled(auto_refuel_enabled)
 
         self.auto_refuel_checkbox.toggled.connect(self._on_auto_refuel_toggled)
         self.refuel_threshold_spinbox.valueChanged.connect(self._save_tank_settings)
+        self.tritium_position_spinbox.valueChanged.connect(self._save_tank_settings)
 
         tank_layout.addWidget(self.auto_refuel_checkbox)
         tank_layout.addSpacing(15)
         tank_layout.addWidget(QLabel("Niedrigster Tankfüllstand:"))
         tank_layout.addWidget(self.refuel_threshold_spinbox)
+        tank_layout.addSpacing(15)
+        tank_layout.addWidget(QLabel("Tritium-Position:"))
+        tank_layout.addWidget(self.tritium_position_spinbox)
         tank_layout.addStretch()
 
         # --------------------------------------------------
@@ -947,6 +970,7 @@ class AutomationWindow(QMainWindow):
         """
 
         self.refuel_threshold_spinbox.setEnabled(enabled)
+        self.tritium_position_spinbox.setEnabled(enabled)
         self._save_tank_settings()
 
     @Slot()
@@ -961,6 +985,7 @@ class AutomationWindow(QMainWindow):
         self.settings["carrier_refuel_threshold"] = (
             self.refuel_threshold_spinbox.value()
         )
+        self.settings["tritium_list_position"] = self.tritium_position_spinbox.value()
 
         save_settings(self.settings)
 
@@ -1366,9 +1391,9 @@ class AutomationWindow(QMainWindow):
 
         self.auto_refuel_checkbox.setEnabled(not running)
 
-        self.refuel_threshold_spinbox.setEnabled(
-            not running and self.auto_refuel_checkbox.isChecked()
-        )
+        tank_controls_enabled = not running and self.auto_refuel_checkbox.isChecked()
+        self.refuel_threshold_spinbox.setEnabled(tank_controls_enabled)
+        self.tritium_position_spinbox.setEnabled(tank_controls_enabled)
 
         if running:
             self.tank_test_button.setText("Tankprüfung läuft...")
@@ -1569,9 +1594,9 @@ class AutomationWindow(QMainWindow):
 
         self.auto_refuel_checkbox.setEnabled(not running)
 
-        self.refuel_threshold_spinbox.setEnabled(
-            not running and self.auto_refuel_checkbox.isChecked()
-        )
+        tank_controls_enabled = not running and self.auto_refuel_checkbox.isChecked()
+        self.refuel_threshold_spinbox.setEnabled(tank_controls_enabled)
+        self.tritium_position_spinbox.setEnabled(tank_controls_enabled)
 
         if running:
             self.start_button.setText("Automatik läuft...")

@@ -6,6 +6,17 @@ Dieses Projekt orientiert sich an den Empfehlungen von
 Keep a Changelog sowie Semantic Versioning.
 
 ---
+## Version 1.0.1
+
+### Verbesserungen
+
+- Neue Einstellung **„Tritium-Position“** ergänzt.
+- Die Tritiumsuche kann jetzt an einer frei wählbaren Position innerhalb der Transferliste beginnen.
+- Dadurch werden auch sehr lange Warenlisten deutlich schneller durchsucht.
+- Nach der eingestellten Startposition sucht CTSVision zusätzlich automatisch einige Zeilen oberhalb und unterhalb nach dem Eintrag **TRITIUM**.
+- Verbesserte Kompatibilität mit unterschiedlichen Fleet-Carrier-Konfigurationen.
+
+---
 
 ## [1.0.0] - 2026-07-21
 

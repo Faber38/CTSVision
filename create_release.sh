@@ -2,7 +2,7 @@
 
 set -e
 
-VERSION="1.0.0"
+VERSION="1.0.1"
 RELEASE="CTSVision_v${VERSION}"
 RELEASE_DIR="release/${RELEASE}"
 ARCHIVE="release/${RELEASE}.zip"
@@ -39,6 +39,7 @@ cp requirements.txt "${RELEASE_DIR}/"
 cp -r assets "${RELEASE_DIR}/"
 cp -r config "${RELEASE_DIR}/"
 cp -r navigation "${RELEASE_DIR}/"
+cp -r ocr "${RELEASE_DIR}/"
 
 # Dokumentationsbilder übernehmen, falls vorhanden
 if [ -d docs ]; then

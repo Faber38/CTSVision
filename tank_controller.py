@@ -78,6 +78,7 @@ class TankController:
         self.settings = load_settings()
 
         self.refuel_threshold = self._load_refuel_threshold()
+        self.tritium_list_position = self._load_tritium_list_position()
 
         # PaddleOCR wird erst dann geladen, wenn es tatsächlich
         # für die Tankprüfung benötigt wird.
@@ -122,6 +123,48 @@ class TankController:
                 threshold,
             ),
         )
+
+    def _load_tritium_list_position(self) -> int:
+        """Liest die erwartete Tritium-Position aus den GUI-Einstellungen.
+
+        Positive Werte bewegen die Auswahl nach oben (W), negative Werte
+        nach unten (S). Der Wert 0 prüft zunächst die aktuelle Zeile.
+        """
+
+        try:
+            position = int(self.settings.get("tritium_list_position", 0))
+        except (TypeError, ValueError):
+            position = 0
+
+        return max(-50, min(50, position))
+
+    def _move_transfer_selection(self, steps: int) -> None:
+        """Bewegt die Auswahl um die angegebene Anzahl Listenzeilen."""
+
+        if steps == 0:
+            return
+
+        key = "w" if steps > 0 else "s"
+        direction = "nach oben" if steps > 0 else "nach unten"
+        count = abs(steps)
+
+        self._log(
+            "TankController: Transferauswahl wird "
+            f"{count}-mal {direction} bewegt (Taste {key.upper()})."
+        )
+
+        for step in range(1, count + 1):
+            self.press_key(
+                key,
+                hold_time=0.12,
+                after_delay=0.18,
+            )
+            self._log(
+                f"TankController: Taste {key.upper()} wurde gedrückt "
+                f"({step}/{count})."
+            )
+
+        time.sleep(0.35)
 
     def _get_ocr_engine(self) -> PaddleEngine:
         """
@@ -1136,239 +1179,186 @@ class TankController:
         )
         return False, "w", similarity
 
-    def find_tritium_in_transfer_menu(
-        self,
-        *,
-        max_scroll_rounds: int = 5,
-        scroll_steps: int = 6,
-    ) -> str:
-        """
-        Sucht im Transfermenü per OCR nach dem Eintrag „TRITIUM“.
+    def find_tritium_in_transfer_menu(self) -> str:
+        """Sucht TRITIUM rund um eine einstellbare Listenposition.
 
-        Wird Tritium nicht gefunden, wird sechsmal W gedrückt.
-        Anschließend wird der sichtbare Listenbereich erneut gelesen.
-
-        Es werden höchstens fünf Scroll-Runden ausgeführt.
+        Zuerst wird die in der GUI gespeicherte Position blind angefahren:
+        positive Werte mit W nach oben, negative Werte mit S nach unten.
+        Danach wird die erwartete Position geprüft. Bleibt die OCR ohne
+        Treffer, werden zusätzlich zwei Positionen nach oben und fünf
+        Positionen nach unten relativ zum Startwert kontrolliert.
         """
 
         self._log(
-            "TankController: Im Transfermenü wird per OCR " "nach „TRITIUM“ gesucht."
+            "TankController: Im Transfermenü wird per OCR nach „TRITIUM“ gesucht."
         )
 
         ocr_engine = self._get_ocr_engine()
-
         debug_dir = Path(__file__).resolve().parent / "references" / "debug"
+        debug_dir.mkdir(parents=True, exist_ok=True)
 
-        debug_dir.mkdir(
-            parents=True,
-            exist_ok=True,
+        base_position = self.tritium_list_position
+        self._log(
+            "TankController: Eingestellte Tritium-Position: "
+            f"{base_position:+d} (positiv = W/oben, negativ = S/unten)."
         )
-        # Merkt sich die zuletzt verwendete Bewegungsrichtung.
-        # Ein unmittelbarer Wechsel von W zu S oder von S zu W
-        # deutet darauf hin, dass die Auswahl zwischen zwei Zeilen pendelt.
+
+        # Zuerst die erwartete Position blind anfahren.
+        self._move_transfer_selection(base_position)
+
+        # Suchpositionen relativ zur erwarteten Position:
+        # aktuelle Position, 1/2 nach oben, anschließend 1..5 nach unten.
+        search_offsets = (0, 1, 2, -1, -2, -3, -4, -5)
+        current_offset = 0
         last_movement_key: str | None = None
+        scan_number = 0
 
-        # Erste Prüfung erfolgt ohne vorheriges Scrollen.
-        # Danach folgen höchstens max_scroll_rounds Scroll-Runden.
-        for scan_number in range(max_scroll_rounds + 1):
+        for target_offset in search_offsets:
+            movement = target_offset - current_offset
+            if movement:
+                self._move_transfer_selection(movement)
+                current_offset = target_offset
 
-            # Wird in jedem neuen Prüfdurchlauf zurückgesetzt.
-            tritium_visible_but_not_selected = False
-
-            image = self._capture_reference_region(self.TRANSFER_LIST_REFERENCE)
-
-            image = image.resize(
-                (
-                    image.width * 2,
-                    image.height * 2,
-                )
-            )
-
-            debug_file = debug_dir / f"ocr_transfer_item_list_{scan_number + 1}.png"
-
-            image.save(debug_file)
-
+            absolute_position = base_position + target_offset
             self._log(
-                "TankController: Transferliste wird per OCR gelesen "
-                f"(Prüfung {scan_number + 1}/"
-                f"{max_scroll_rounds + 1})."
+                "TankController: Prüfe Tritium-Suchposition "
+                f"{absolute_position:+d} (Abweichung {target_offset:+d})."
             )
 
-            result = ocr_engine.read_image(str(debug_file))
+            # Sobald TRITIUM sichtbar ist, darf die vorhandene Pfeil-/
+            # Balkenerkennung die Auswahl zeilenweise exakt ausrichten.
+            for alignment_attempt in range(12):
+                scan_number += 1
+                image = self._capture_reference_region(self.TRANSFER_LIST_REFERENCE)
+                image = image.resize((image.width * 2, image.height * 2))
 
-            if result.success:
+                debug_file = debug_dir / (
+                    f"ocr_transfer_item_list_{scan_number:02d}.png"
+                )
+                image.save(debug_file)
+
+                self._log(
+                    "TankController: Transferliste wird per OCR gelesen "
+                    f"(Prüfung {scan_number})."
+                )
+
+                result = ocr_engine.read_image(str(debug_file))
+
+                if not result.success:
+                    self._log(
+                        "TankController: OCR hat an dieser Position "
+                        "keinen lesbaren Text erkannt."
+                    )
+                    break
 
                 self._log("TankController: OCR-Text Transferliste: " f"{result.text!r}")
-
                 self._log(
                     "TankController: OCR-Konfidenz Transferliste: "
                     f"{result.confidence * 100:.2f} %."
                 )
 
-                for line in result.lines:
-
-                    if "TRITIUM" not in line.text.upper():
-                        continue
-
-                    if line.box is None:
-                        self._log(
-                            "TankController: „TRITIUM“ wurde gelesen, "
-                            "aber OCR lieferte keine Positionsdaten."
-                        )
-
-                        continue
-
-                    self._log(
-                        "TankController: Der Eintrag „TRITIUM“ "
-                        "wurde sicher in der Transferliste gefunden."
-                    )
-
-                    self._log(
-                        "TankController: Position von „TRITIUM“: "
-                        f"X={line.box.x}, "
-                        f"Y={line.box.y}, "
-                        f"Breite={line.box.width}, "
-                        f"Höhe={line.box.height}."
-                    )
-
+                tritium_line = next(
                     (
-                        tritium_selected,
-                        movement_key,
-                        arrow_similarity,
-                    ) = self.get_tritium_selection_direction(
-                        tritium_x=line.box.x,
-                        tritium_y=line.box.y,
-                        tritium_width=line.box.width,
-                        tritium_height=line.box.height,
-                        image_scale=2,
-                    )
+                        line
+                        for line in result.lines
+                        if "TRITIUM" in line.text.upper() and line.box is not None
+                    ),
+                    None,
+                )
 
-                    if tritium_selected:
-                        self._log(
-                            "TankController: Der Auswahlpfeil steht auf "
-                            "der Tritiumzeile. „TRITIUM“ ist angewählt."
-                        )
-
-                        self._log(
-                            "TankController: Taste A wird 5 Sekunden gehalten, "
-                            "um so viel Tritium wie möglich ins Schiff zu übertragen."
-                        )
-
-                        self.press_key(
-                            "a",
-                            hold_time=5.20,
-                            after_delay=1.00,
-                        )
-
-                        self._log(
-                            "TankController: Tritium wurde in das Schiff übertragen."
-                        )
-
-                        self._log(
-                            "TankController: BACKSPACE wird gedrückt, "
-                            "um die Bearbeitung zu verlassen und direkt "
-                            "zur Schaltfläche „ABBRECHEN“ zu wechseln."
-                        )
-
-                        self.press_key(
-                            "backspace",
-                            hold_time=0.20,
-                            after_delay=0.80,
-                        )
-
-                        self._log(
-                            "TankController: BACKSPACE wurde ausgeführt. "
-                            "Anschließend wird „ABBRECHEN“ geprüft."
-                        )
-
-                        return result.text
-
-                    if movement_key not in {"w", "s"}:
-                        raise TankControllerError(
-                            "Für die Bewegung zur Tritiumzeile wurde keine "
-                            "sichere Richtung ermittelt."
-                        )
-
-                    if (
-                        last_movement_key is not None
-                        and movement_key != last_movement_key
-                    ):
-                        raise TankControllerError(
-                            "Die Auswahl würde zwischen zwei Listenzeilen pendeln. "
-                            f"Zuletzt wurde {last_movement_key.upper()} verwendet, "
-                            f"jetzt wäre {movement_key.upper()} erforderlich. "
-                            "Es wird keine weitere Richtungstaste gedrückt."
-                        )
-
-                    last_movement_key = movement_key
-
-                    direction_text = (
-                        "nach oben" if movement_key == "w" else "nach unten"
-                    )
-
+                if tritium_line is None:
                     self._log(
-                        "TankController: „TRITIUM“ ist sichtbar, "
-                        "aber noch nicht angewählt."
+                        "TankController: „TRITIUM“ wurde an dieser "
+                        "Suchposition nicht gefunden."
                     )
-
-                    self._log(
-                        f"TankController: Taste {movement_key.upper()} wird "
-                        f"einmal gedrückt, um die Auswahl {direction_text} "
-                        "zur Tritiumzeile zu bewegen."
-                    )
-
-                    self.press_key(
-                        movement_key,
-                        hold_time=0.12,
-                        after_delay=0.40,
-                    )
-
-                    tritium_visible_but_not_selected = True
-
-                    # Schleife über die OCR-Zeilen verlassen.
-                    # Danach beginnt ein neuer OCR-Prüfdurchlauf.
                     break
 
-            else:
                 self._log(
-                    "TankController: OCR hat in der Transferliste "
-                    "keinen lesbaren Text erkannt."
+                    "TankController: Der Eintrag „TRITIUM“ wurde in der "
+                    "Transferliste gefunden."
+                )
+                self._log(
+                    "TankController: Position von „TRITIUM“: "
+                    f"X={tritium_line.box.x}, Y={tritium_line.box.y}, "
+                    f"Breite={tritium_line.box.width}, "
+                    f"Höhe={tritium_line.box.height}."
                 )
 
-            # Tritium war sichtbar, aber noch nicht ausgewählt.
-            # Nach dem einzelnen W sofort neu aufnehmen und prüfen.
-            if tritium_visible_but_not_selected:
-                continue
+                tritium_selected, movement_key, _ = (
+                    self.get_tritium_selection_direction(
+                        tritium_x=tritium_line.box.x,
+                        tritium_y=tritium_line.box.y,
+                        tritium_width=tritium_line.box.width,
+                        tritium_height=tritium_line.box.height,
+                        image_scale=2,
+                    )
+                )
 
-            if scan_number >= max_scroll_rounds:
-                break
+                if tritium_selected:
+                    self._log(
+                        "TankController: Der Auswahlpfeil steht auf der "
+                        "Tritiumzeile. „TRITIUM“ ist angewählt."
+                    )
+                    self._log(
+                        "TankController: Taste A wird 5 Sekunden gehalten, "
+                        "um so viel Tritium wie möglich ins Schiff zu übertragen."
+                    )
+                    self.press_key(
+                        "a",
+                        hold_time=5.20,
+                        after_delay=1.00,
+                    )
+                    self._log("TankController: Tritium wurde in das Schiff übertragen.")
+                    self._log(
+                        "TankController: BACKSPACE wird gedrückt, um die "
+                        "Bearbeitung zu verlassen und direkt zur Schaltfläche "
+                        "„ABBRECHEN“ zu wechseln."
+                    )
+                    self.press_key(
+                        "backspace",
+                        hold_time=0.20,
+                        after_delay=0.80,
+                    )
+                    return result.text
 
-            self._log(
-                "TankController: „TRITIUM“ wurde noch nicht gefunden. "
-                f"Taste W wird jetzt {scroll_steps}-mal gedrückt "
-                f"(Scroll-Runde {scan_number + 1}/"
-                f"{max_scroll_rounds})."
-            )
+                if movement_key not in {"w", "s"}:
+                    raise TankControllerError(
+                        "Für die Bewegung zur Tritiumzeile wurde keine "
+                        "sichere Richtung ermittelt."
+                    )
 
-            for step in range(1, scroll_steps + 1):
+                if last_movement_key is not None and movement_key != last_movement_key:
+                    raise TankControllerError(
+                        "Die Auswahl würde zwischen zwei Listenzeilen pendeln. "
+                        f"Zuletzt wurde {last_movement_key.upper()} verwendet, "
+                        f"jetzt wäre {movement_key.upper()} erforderlich."
+                    )
 
+                last_movement_key = movement_key
+                self._log(
+                    f"TankController: „TRITIUM“ ist sichtbar. Taste "
+                    f"{movement_key.upper()} wird einmal zur exakten "
+                    "Ausrichtung gedrückt."
+                )
                 self.press_key(
-                    "w",
+                    movement_key,
                     hold_time=0.12,
-                    after_delay=0.18,
+                    after_delay=0.40,
+                )
+            else:
+                raise TankControllerError(
+                    "TRITIUM wurde erkannt, konnte aber nach 12 Schritten "
+                    "nicht sicher angewählt werden."
                 )
 
-                self._log(
-                    "TankController: Taste W wurde gedrückt "
-                    f"({step}/{scroll_steps})."
-                )
+            last_movement_key = None
 
-            time.sleep(0.50)
-
+        checked_min = base_position - 5
+        checked_max = base_position + 2
         raise TankControllerError(
-            "Der Eintrag „TRITIUM“ wurde auch nach "
-            f"{max_scroll_rounds} Scroll-Runden mit jeweils "
-            f"{scroll_steps} Tastendrücken nicht gefunden."
+            "Der Eintrag „TRITIUM“ wurde im eingestellten Suchbereich "
+            f"nicht gefunden. Ausgangsposition: {base_position:+d}; "
+            f"geprüfter Bereich: {checked_min:+d} bis {checked_max:+d}."
         )
 
     def donate_ship_tritium_to_carrier(
@@ -1690,10 +1680,7 @@ class TankController:
                         "TankController: Der Fokus wurde in die Transferliste bewegt."
                     )
 
-                    self.find_tritium_in_transfer_menu(
-                        max_scroll_rounds=5,
-                        scroll_steps=6,
-                    )
+                    self.find_tritium_in_transfer_menu()
 
                     self.select_transfer_abbrechen()
 
