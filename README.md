@@ -1,7 +1,7 @@
 # 🚀 CTSVision
 
 <p align="center">
-  <img src="docs/ctsvision_banner.png" alt="CTSVision Banner" width="100%">
+  <img src="docs/images/ctsvision_banner.png" alt="CTSVision Banner" width="100%">
 </p>
 
 <p align="center">
@@ -37,9 +37,9 @@ CTSVision automatisiert Fleet-Carrier-Abläufe unter Linux. Statt mit festen Zei
 
 > Füge hier einen Screenshot des Hauptfensters ein.
 
-```text
-docs/images/main_window.png
-```
+<p align="center">
+  <img src="docs/images/Haupt.png" alt="Programm" width="100%">
+</p>
 
 ---
 
