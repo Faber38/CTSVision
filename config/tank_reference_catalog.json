@@ -25,118 +25,118 @@
     }
   },
   {
-  "name": "tank_tritium_spenden_aktiv",
-  "type": "reference",
-  "title": "Tritium spenden aktiv",
-  "group": "Tritium-Depot",
-  "template": "assets/templates/tank/tank_tritium_spenden_aktiv.png",
-  "filename": "tank_tritium_spenden_aktiv.png",
-  "description": "Der Button 'TRITIUM SPENDEN' ist aktiv. Wird dieser Zustand erkannt, kann später automatisch SPACE gedrückt werden."
- },
- {
-  "name": "tank_depot_bestaetigen_aktiv",
-  "type": "reference",
-  "title": "Depot bestätigen aktiv",
-  "group": "Tritium spenden",
-  "template": "assets/templates/tank/tank_depot_bestaetigen_aktiv.png",
-  "filename": "tank_depot_bestaetigen_aktiv.png",
-  "description": "Der Menüpunkt 'DEPOT BESTÄTIGEN' ist orange markiert und kann mit SPACE ausgeführt werden."
-},
-{
-  "name": "tank_abbrechen_aktiv",
-  "type": "reference",
-  "title": "Abbrechen aktiv",
-  "group": "Tritium spenden",
-  "template": "assets/templates/tank/tank_abbrechen_aktiv.png",
-  "filename": "tank_abbrechen_aktiv.png",
-  "description": "Der Menüpunkt 'ABBRECHEN' ist orange markiert. Später wird mit PFEIL HOCH zu 'DEPOT BESTÄTIGEN' gewechselt."
-},
-{
-  "name": "tank_tritium_verlassen_aktiv",
-  "type": "reference",
-  "title": "Verlassen aktiv",
-  "group": "Tritium-Depot",
-  "template": "assets/templates/tank/tank_tritium_verlassen_aktiv.png",
-  "filename": "tank_tritium_verlassen_aktiv.png",
-  "description": "Der Button 'Verlassen' ist ausgewählt. Dieser Zustand wird später verwendet, um das Tritium-Depot kontrolliert zu verlassen."
-},
-{
-  "name": "tank_kein_tritium_verfuegbar",
-  "type": "reference",
-  "title": "Kein Tritium verfügbar",
-  "group": "Tritium-Depot",
-  "template": "assets/templates/tank/tank_kein_tritium_verfuegbar.png",
-  "filename": "tank_kein_tritium_verfuegbar.png",
-  "description": "Im Schiff befindet sich kein Tritium mehr. Vor dem weiteren Betanken des Carriers muss das Schiff zunächst wieder aus dem Depot aufgefüllt werden."
-},
-{
-  "name": "tank_inventar_aktiv",
-  "type": "reference",
-  "title": "Inventar aktiv",
-  "group": "Schiff auffüllen",
-  "template": "assets/templates/tank/tank_inventar_aktiv.png",
-  "filename": "tank_inventar_aktiv.png",
-  "description": "Der Reiter 'INVENTAR' im rechten Schiffsmenü ist aktiv. Später wird nach dem Öffnen mit Taste 4 höchstens zehnmal E gedrückt, bis dieser Zustand sicher erkannt wird."
-},
-{
-  "name": "tank_filter_aktiv",
-  "type": "reference",
-  "title": "Filter aktiv",
-  "group": "Schiff auffüllen",
-  "template": "assets/templates/tank/tank_filter_aktiv.png",
-  "filename": "tank_filter_aktiv.png",
-  "description": "Der Fokus befindet sich auf dem Button 'FILTER'. Dieser Zustand dient als Ausgangspunkt für die Navigation zum Transfer-Button."
-},
-{
-  "name": "tank_transfer_aktiv",
-  "type": "reference",
-  "title": "Transfer aktiv",
-  "group": "Schiff auffüllen",
-  "template": "assets/templates/tank/tank_transfer_aktiv.png",
-  "filename": "tank_transfer_aktiv.png",
-  "description": "Der Fokus befindet sich auf dem Button 'TRANSFER'. Erst in diesem Zustand wird später SPACE gedrückt."
-},
-{
-  "name": "tank_transfer_abbrechen_aktiv",
-  "type": "reference",
-  "title": "Transfer abbrechen aktiv",
-  "group": "Schiff auffüllen",
-  "template": "assets/templates/tank/tank_transfer_abbrechen_aktiv.png",
-  "filename": "tank_transfer_abbrechen_aktiv.png",
-  "description": "Im Transferfenster ist der Button 'ABBRECHEN' aktiv ausgewählt. Dieser Zustand dient als definierter Ausgangspunkt für die Navigation zu 'TRANSFER BESTÄTIGEN'."
-},
-{
-  "name": "tank_transfer_bestaetigen_aktiv",
-  "type": "reference",
-  "title": "Transfer bestätigen aktiv",
-  "group": "Schiff auffüllen",
-  "template": "assets/templates/tank/tank_transfer_bestaetigen_aktiv.png",
-  "filename": "tank_transfer_bestaetigen_aktiv.png",
-  "description": "Im Transferfenster ist der Button 'TRANSFER BESTÄTIGEN' aktiv ausgewählt. Sobald dieser Zustand erkannt wurde, kann der Transfer später mit SPACE bestätigt werden."
-},
-{
-  "name": "ocr_transfer_item_list",
-  "type": "ocr",
-  "title": "Transfer-Warenliste",
-  "group": "OCR-Bereiche",
-  "template": "",
-  "filename": "ocr_transfer_item_list.png",
-  "parser": "item_list",
-  "description": "Markiere den sichtbaren Bereich der Warenliste im Transfer-Menü. OCR sucht darin nach dem Eintrag 'TRITIUM' und liefert später dessen Position für einen Mausklick.",
-  "region": {
-    "x": 200,
-    "y": 200,
-    "width": 700,
-    "height": 350
+    "name": "tank_tritium_spenden_aktiv",
+    "type": "reference",
+    "title": "Tritium spenden aktiv",
+    "group": "Tritium-Depot",
+    "template": "assets/templates/tank/tank_tritium_spenden_aktiv.png",
+    "filename": "tank_tritium_spenden_aktiv.png",
+    "description": "Der Button 'TRITIUM SPENDEN' ist aktiv. Wird dieser Zustand erkannt, kann später automatisch SPACE gedrückt werden."
+  },
+  {
+    "name": "tank_depot_bestaetigen_aktiv",
+    "type": "reference",
+    "title": "Depot bestätigen aktiv",
+    "group": "Tritium spenden",
+    "template": "assets/templates/tank/tank_depot_bestaetigen_aktiv.png",
+    "filename": "tank_depot_bestaetigen_aktiv.png",
+    "description": "Der Menüpunkt 'DEPOT BESTÄTIGEN' ist orange markiert und kann mit SPACE ausgeführt werden."
+  },
+  {
+    "name": "tank_abbrechen_aktiv",
+    "type": "reference",
+    "title": "Abbrechen aktiv",
+    "group": "Tritium spenden",
+    "template": "assets/templates/tank/tank_abbrechen_aktiv.png",
+    "filename": "tank_abbrechen_aktiv.png",
+    "description": "Der Menüpunkt 'ABBRECHEN' ist orange markiert. Später wird mit PFEIL HOCH zu 'DEPOT BESTÄTIGEN' gewechselt."
+  },
+  {
+    "name": "tank_tritium_verlassen_aktiv",
+    "type": "reference",
+    "title": "Verlassen aktiv",
+    "group": "Tritium-Depot",
+    "template": "assets/templates/tank/tank_tritium_verlassen_aktiv.png",
+    "filename": "tank_tritium_verlassen_aktiv.png",
+    "description": "Der Button 'Verlassen' ist ausgewählt. Dieser Zustand wird später verwendet, um das Tritium-Depot kontrolliert zu verlassen."
+  },
+  {
+    "name": "tank_kein_tritium_verfuegbar",
+    "type": "reference",
+    "title": "Kein Tritium verfügbar",
+    "group": "Tritium-Depot",
+    "template": "assets/templates/tank/tank_kein_tritium_verfuegbar.png",
+    "filename": "tank_kein_tritium_verfuegbar.png",
+    "description": "Im Schiff befindet sich kein Tritium mehr. Vor dem weiteren Betanken des Carriers muss das Schiff zunächst wieder aus dem Depot aufgefüllt werden."
+  },
+  {
+    "name": "tank_inventar_aktiv",
+    "type": "reference",
+    "title": "Inventar aktiv",
+    "group": "Schiff auffüllen",
+    "template": "assets/templates/tank/tank_inventar_aktiv.png",
+    "filename": "tank_inventar_aktiv.png",
+    "description": "Der Reiter 'INVENTAR' im rechten Schiffsmenü ist aktiv. Später wird nach dem Öffnen mit Taste 4 höchstens zehnmal E gedrückt, bis dieser Zustand sicher erkannt wird."
+  },
+  {
+    "name": "tank_filter_aktiv",
+    "type": "reference",
+    "title": "Filter aktiv",
+    "group": "Schiff auffüllen",
+    "template": "assets/templates/tank/tank_filter_aktiv.png",
+    "filename": "tank_filter_aktiv.png",
+    "description": "Der Fokus befindet sich auf dem Button 'FILTER'. Dieser Zustand dient als Ausgangspunkt für die Navigation zum Transfer-Button."
+  },
+  {
+    "name": "tank_transfer_aktiv",
+    "type": "reference",
+    "title": "Transfer aktiv",
+    "group": "Schiff auffüllen",
+    "template": "assets/templates/tank/tank_transfer_aktiv.png",
+    "filename": "tank_transfer_aktiv.png",
+    "description": "Der Fokus befindet sich auf dem Button 'TRANSFER'. Erst in diesem Zustand wird später SPACE gedrückt."
+  },
+  {
+    "name": "tank_transfer_abbrechen_aktiv",
+    "type": "reference",
+    "title": "Transfer abbrechen aktiv",
+    "group": "Schiff auffüllen",
+    "template": "assets/templates/tank/tank_transfer_abbrechen_aktiv.png",
+    "filename": "tank_transfer_abbrechen_aktiv.png",
+    "description": "Im Transferfenster ist der Button 'ABBRECHEN' aktiv ausgewählt. Dieser Zustand dient als definierter Ausgangspunkt für die Navigation zu 'TRANSFER BESTÄTIGEN'."
+  },
+  {
+    "name": "tank_transfer_bestaetigen_aktiv",
+    "type": "reference",
+    "title": "Transfer bestätigen aktiv",
+    "group": "Schiff auffüllen",
+    "template": "assets/templates/tank/tank_transfer_bestaetigen_aktiv.png",
+    "filename": "tank_transfer_bestaetigen_aktiv.png",
+    "description": "Im Transferfenster ist der Button 'TRANSFER BESTÄTIGEN' aktiv ausgewählt. Sobald dieser Zustand erkannt wurde, kann der Transfer später mit SPACE bestätigt werden."
+  },
+  {
+    "name": "ocr_transfer_item_list",
+    "type": "ocr",
+    "title": "Transfer-Warenliste",
+    "group": "OCR-Bereiche",
+    "template": "assets/templates/tank/ocr_transfer_item_list.png",
+    "filename": "ocr_transfer_item_list.png",
+    "parser": "item_list",
+    "description": "Markiere den sichtbaren Bereich der Warenliste im Transfer-Menü. OCR sucht darin nach dem Eintrag 'TRITIUM' und liefert später dessen Position für einen Mausklick.",
+    "region": {
+      "x": 200,
+      "y": 200,
+      "width": 700,
+      "height": 350
+    }
+  },
+  {
+    "name": "tank_auswahlpfeil_links",
+    "type": "template",
+    "title": "Auswahlpfeil links",
+    "group": "Schiff auffüllen",
+    "template": "assets/templates/tank/tank_auswahlpfeil_links.png",
+    "filename": "tank_auswahlpfeil_links.png",
+    "description": "Mobiles Suchmuster für den nach links zeigenden Auswahlpfeil in der Transfer-Warenliste. Die Position wird zur Laufzeit innerhalb des OCR-Bereichs 'ocr_transfer_item_list' gesucht."
   }
-},
-{
-  "name": "tank_auswahlpfeil_links",
-  "type": "template",
-  "title": "Auswahlpfeil links",
-  "group": "Schiff auffüllen",
-  "template": "assets/templates/tank/tank_auswahlpfeil_links.png",
-  "filename": "tank_auswahlpfeil_links.png",
-  "description": "Mobiles Suchmuster für den nach links zeigenden Auswahlpfeil in der Transfer-Warenliste. Die Position wird zur Laufzeit innerhalb des OCR-Bereichs 'ocr_transfer_item_list' gesucht."
-}
 ]
