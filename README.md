@@ -79,6 +79,30 @@ Daher wird empfohlen:
 
 ------------------------------------------------------------------------
 
+# 🖥️ Empfohlene Arbeitsumgebung
+
+Für einen zuverlässigen Automatikbetrieb wird empfohlen, **Elite Dangerous
+allein auf einer eigenen Arbeitsfläche (Virtual Desktop)** auszuführen.
+
+CTSVision arbeitet ausschließlich mit dem sichtbaren Bildschirminhalt von
+Elite Dangerous. Änderungen am Fensterinhalt – etwa durch überlagernde
+Fenster oder einen Wechsel auf eine andere Anwendung – können die
+Bilderkennung beeinträchtigen oder zu einem Abbruch des Automatiklaufs
+führen.
+
+Daher wird empfohlen:
+
+- Elite Dangerous als einziges sichtbares Fenster auf dieser Arbeitsfläche
+  auszuführen.
+- Das Elite-Fenster während des Automatiklaufs nicht zu minimieren oder zu
+  überdecken.
+- Während eines Automatiklaufs nicht auf andere Anwendungen innerhalb
+  derselben Arbeitsfläche zu wechseln.
+- Programme wie Browser, Discord oder EDDiscovery auf einer separaten
+  Arbeitsfläche zu verwenden.
+
+------------------------------------------------------------------------
+
 # 📝 Feedback
 
 Fehlermeldungen, Screenshots und Logdateien helfen dabei, CTSVision
