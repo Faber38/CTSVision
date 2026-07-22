@@ -282,10 +282,10 @@
       "image": "tank_inventar_aktiv.png"
     },
     "tank_filter_aktiv": {
-      "x": 1090,
-      "y": 242,
-      "width": 578,
-      "height": 112,
+      "x": 1170,
+      "y": 300,
+      "width": 230,
+      "height": 50,
       "image": "tank_filter_aktiv.png"
     },
     "tank_transfer_aktiv": {
