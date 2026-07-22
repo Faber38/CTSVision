@@ -2,6 +2,6 @@
     "journal_directory": "/home/holger/.steam/debian-installation/steamapps/compatdata/359320/pfx/drive_c/users/steamuser/Saved Games/Frontier Developments/Elite Dangerous",
     "last_route": "/home/holger/Schreibtisch/route.csv",
     "auto_refuel_enabled": true,
-    "carrier_refuel_threshold": 30,
-    "tritium_list_position": 1
+    "carrier_refuel_threshold": 105,
+    "tritium_list_position": 2
 }

@@ -629,6 +629,7 @@ class AutomationWindow(QMainWindow):
         )
 
         self._build_ui()
+        self._apply_theme()
 
         journal_directory = str(
             self.settings.get(
@@ -669,6 +670,37 @@ class AutomationWindow(QMainWindow):
         self.setCentralWidget(central)
 
         layout = QVBoxLayout(central)
+        layout.setContentsMargins(14, 14, 14, 14)
+        layout.setSpacing(10)
+
+        # --------------------------------------------------
+        # Kopfbereich
+        # --------------------------------------------------
+
+        header_layout = QHBoxLayout()
+
+        title_block = QVBoxLayout()
+        title_block.setSpacing(1)
+
+        title_label = QLabel("CTSVision")
+        title_label.setObjectName("appTitle")
+
+        subtitle_label = QLabel("Fleet Carrier Automation  •  CMDR Faber38")
+        subtitle_label.setObjectName("appSubtitle")
+
+        title_block.addWidget(title_label)
+        title_block.addWidget(subtitle_label)
+
+        header_layout.addLayout(title_block)
+        header_layout.addStretch()
+
+        self.version_label = QLabel("Version 1.0.1\nStable")
+        self.version_label.setObjectName("versionBadge")
+        self.version_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.version_label.setMinimumWidth(110)
+
+        header_layout.addWidget(self.version_label)
+        layout.addLayout(header_layout)
 
         # Oberer Bereich: Inhalte links, Assistenten rechts
         top_layout = QHBoxLayout()
@@ -682,6 +714,7 @@ class AutomationWindow(QMainWindow):
         # --------------------------------------------------
 
         route_box = QGroupBox("Route")
+        route_box.setObjectName("routeBox")
         content_layout.addWidget(route_box)
 
         route_layout = QGridLayout(route_box)
@@ -719,6 +752,7 @@ class AutomationWindow(QMainWindow):
         # --------------------------------------------------
 
         info_box = QGroupBox("Informationen")
+        info_box.setObjectName("infoBox")
         content_layout.addWidget(info_box)
 
         info_layout = QGridLayout(info_box)
@@ -726,6 +760,15 @@ class AutomationWindow(QMainWindow):
         self.total_label = QLabel("-")
         self.progress_label = QLabel("-")
         self.target_label = QLabel("-")
+
+        for value_label in (
+            self.total_label,
+            self.progress_label,
+            self.target_label,
+        ):
+            value_label.setObjectName("infoValue")
+
+        self.target_label.setObjectName("targetValue")
 
         info_layout.addWidget(QLabel("Anzahl Ziele:"), 0, 0)
         info_layout.addWidget(self.total_label, 0, 1)
@@ -739,11 +782,18 @@ class AutomationWindow(QMainWindow):
         # --------------------------------------------------
 
         tank_box = QGroupBox("Tanken")
+        tank_box.setObjectName("tankBox")
         content_layout.addWidget(tank_box)
 
-        tank_layout = QHBoxLayout(tank_box)
+        tank_layout = QGridLayout(tank_box)
+        tank_layout.setHorizontalSpacing(12)
+        tank_layout.setVerticalSpacing(7)
+        tank_layout.setColumnStretch(0, 1)
+        tank_layout.setColumnStretch(1, 0)
+        tank_layout.setColumnStretch(2, 0)
 
         self.auto_refuel_checkbox = QCheckBox("Carrier automatisch betanken")
+        self.auto_refuel_checkbox.setObjectName("autoRefuelCheck")
         self.auto_refuel_checkbox.setToolTip(
             "Ist diese Option aktiviert, wird die Tankroutine nach einem Sprung "
             "parallel zur vierminütigen Abkühlzeit ausgeführt. "
@@ -751,15 +801,19 @@ class AutomationWindow(QMainWindow):
         )
 
         self.refuel_threshold_spinbox = QSpinBox()
+        self.refuel_threshold_spinbox.setObjectName("tankSpinBox")
         self.refuel_threshold_spinbox.setRange(1, 105)
         self.refuel_threshold_spinbox.setSuffix(" %")
+        self.refuel_threshold_spinbox.setFixedWidth(118)
         self.refuel_threshold_spinbox.setToolTip(
             "Liegt der Carrier-Tank unter diesem Wert, "
             "wird der Tankvorgang gestartet."
         )
 
         self.tritium_position_spinbox = QSpinBox()
+        self.tritium_position_spinbox.setObjectName("tankSpinBox")
         self.tritium_position_spinbox.setRange(-50, 50)
+        self.tritium_position_spinbox.setFixedWidth(105)
         self.tritium_position_spinbox.setToolTip(
             "Erwartete Position von TRITIUM in der Transferliste. "
             "Positive Werte bewegen mit W nach oben, negative Werte "
@@ -767,6 +821,18 @@ class AutomationWindow(QMainWindow):
             "Danach sucht CTSVision zusätzlich 2 Zeilen nach oben und "
             "5 Zeilen nach unten."
         )
+
+        threshold_title = QLabel("Tankgrenze")
+        threshold_title.setObjectName("tankOptionTitle")
+
+        threshold_hint = QLabel("105 % = Testmodus ")
+        threshold_hint.setObjectName("tankOptionHint")
+
+        position_title = QLabel("Tritium-Position")
+        position_title.setObjectName("tankOptionTitle")
+
+        position_hint = QLabel("Positive Werte ↑   •   Negative Werte ↓")
+        position_hint.setObjectName("tankOptionHint")
 
         auto_refuel_enabled = bool(self.settings.get("auto_refuel_enabled", True))
 
@@ -791,34 +857,75 @@ class AutomationWindow(QMainWindow):
         self.refuel_threshold_spinbox.valueChanged.connect(self._save_tank_settings)
         self.tritium_position_spinbox.valueChanged.connect(self._save_tank_settings)
 
-        tank_layout.addWidget(self.auto_refuel_checkbox)
-        tank_layout.addSpacing(15)
-        tank_layout.addWidget(QLabel("Niedrigster Tankfüllstand:"))
-        tank_layout.addWidget(self.refuel_threshold_spinbox)
-        tank_layout.addSpacing(15)
-        tank_layout.addWidget(QLabel("Tritium-Position:"))
-        tank_layout.addWidget(self.tritium_position_spinbox)
-        tank_layout.addStretch()
+        tank_layout.addWidget(
+            self.auto_refuel_checkbox,
+            0,
+            0,
+            2,
+            1,
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
+        )
+
+        threshold_card = QWidget()
+        threshold_card.setObjectName("tankOptionCard")
+        threshold_layout = QGridLayout(threshold_card)
+        threshold_layout.setContentsMargins(10, 6, 8, 6)
+        threshold_layout.setHorizontalSpacing(10)
+        threshold_layout.setVerticalSpacing(1)
+        threshold_layout.addWidget(threshold_title, 0, 0)
+        threshold_layout.addWidget(threshold_hint, 1, 0)
+        threshold_layout.addWidget(
+            self.refuel_threshold_spinbox,
+            0,
+            1,
+            2,
+            1,
+            Qt.AlignmentFlag.AlignVCenter,
+        )
+
+        position_card = QWidget()
+        position_card.setObjectName("tankOptionCard")
+        position_layout = QGridLayout(position_card)
+        position_layout.setContentsMargins(10, 6, 8, 6)
+        position_layout.setHorizontalSpacing(10)
+        position_layout.setVerticalSpacing(1)
+        position_layout.addWidget(position_title, 0, 0)
+        position_layout.addWidget(position_hint, 1, 0)
+        position_layout.addWidget(
+            self.tritium_position_spinbox,
+            0,
+            1,
+            2,
+            1,
+            Qt.AlignmentFlag.AlignVCenter,
+        )
+
+        tank_layout.addWidget(threshold_card, 0, 1, 2, 1)
+        tank_layout.addWidget(position_card, 0, 2, 2, 1)
 
         # --------------------------------------------------
         # Assistenten und Prüfungen rechts oben
         # --------------------------------------------------
 
         assistant_box = QGroupBox("Assistenten und Prüfung")
+        assistant_box.setObjectName("assistantBox")
         assistant_box.setMinimumWidth(190)
         top_layout.addWidget(assistant_box)
 
         assistant_layout = QVBoxLayout(assistant_box)
 
-        self.vision_wizard_button = QPushButton("Sprung Wizard")
+        self.vision_wizard_button = QPushButton("🚀  Sprung Wizard")
+        self.vision_wizard_button.setObjectName("assistantButton")
         self.vision_wizard_button.setMinimumHeight(42)
         self.vision_wizard_button.clicked.connect(self.open_vision_wizard)
 
-        self.tank_wizard_button = QPushButton("Tank Wizard")
+        self.tank_wizard_button = QPushButton("⛽  Tank Wizard")
+        self.tank_wizard_button.setObjectName("assistantButton")
         self.tank_wizard_button.setMinimumHeight(42)
         self.tank_wizard_button.clicked.connect(self.open_tank_wizard)
 
-        self.tank_test_button = QPushButton("Tankfunktion prüfen")
+        self.tank_test_button = QPushButton("✓  Tankfunktion prüfen")
+        self.tank_test_button.setObjectName("assistantButton")
         self.tank_test_button.setMinimumHeight(42)
         self.tank_test_button.setToolTip(
             "Prüft die automatische Tankfunktion vor dem Start der Route. "
@@ -855,16 +962,24 @@ class AutomationWindow(QMainWindow):
 
         button_layout = QHBoxLayout()
 
-        self.restart_button = QPushButton("Route neu starten")
+        self.restart_button = QPushButton("↺  Route neu starten")
+        self.restart_button.setObjectName("secondaryButton")
         self.restart_button.clicked.connect(self.restart_route)
 
-        self.resume_button = QPushButton("Route fortsetzen")
+        self.resume_button = QPushButton("↪  Route fortsetzen")
+        self.resume_button.setObjectName("secondaryButton")
         self.resume_button.clicked.connect(self.refresh_route_display)
 
-        self.start_button = QPushButton("Automatik starten")
+        self.start_button = QPushButton("▶  Automatik starten")
+        self.start_button.setObjectName("primaryButton")
+        self.start_button.setMinimumHeight(36)
+        self.start_button.setMinimumWidth(180)
         self.start_button.clicked.connect(self.start_automation)
 
-        self.stop_button = QPushButton("Stop")
+        self.stop_button = QPushButton("■  Stop")
+        self.stop_button.setObjectName("dangerButton")
+        self.stop_button.setMinimumHeight(36)
+        self.stop_button.setMinimumWidth(90)
         self.stop_button.clicked.connect(self.stop_automation)
         self.stop_button.setEnabled(False)
 
@@ -881,12 +996,15 @@ class AutomationWindow(QMainWindow):
         # --------------------------------------------------
 
         status_box = QGroupBox("Status")
+        status_box.setObjectName("statusBox")
         layout.addWidget(status_box, 1)
 
         status_layout = QVBoxLayout(status_box)
 
         self.status_log = QTextEdit()
         self.status_log.setReadOnly(True)
+        self.status_log.setObjectName("statusLog")
+        self.status_log.setLineWrapMode(QTextEdit.LineWrapMode.WidgetWidth)
 
         status_layout.addWidget(self.status_log)
 
@@ -897,6 +1015,315 @@ class AutomationWindow(QMainWindow):
         self.journal.status_changed.connect(self.on_journal_status)
         self.journal.error_occurred.connect(self.on_journal_error)
         self.journal.start()
+
+    # --------------------------------------------------
+
+    def _apply_theme(self) -> None:
+        """Wendet das zentrale, ruhige CTSVision-Erscheinungsbild an."""
+
+        self.setStyleSheet("""
+            QMainWindow, QWidget {
+                background-color: #f3f6fa;
+                color: #1f2933;
+                font-size: 10pt;
+            }
+
+            QLabel#appTitle {
+                font-size: 20pt;
+                font-weight: 700;
+                color: #123f66;
+            }
+
+            QLabel#appSubtitle {
+                color: #68798a;
+                font-size: 9.5pt;
+                padding-bottom: 4px;
+            }
+
+            QLabel#versionBadge {
+                border: 1px solid #b8cce0;
+                border-radius: 12px;
+                padding: 6px 12px;
+                background-color: #eaf3fb;
+                color: #315f86;
+                font-weight: 700;
+                line-height: 1.2;
+            }
+
+            QGroupBox {
+                border: 1px solid #c8d3dd;
+                border-radius: 8px;
+                margin-top: 10px;
+                padding-top: 10px;
+                font-weight: 700;
+                background-color: #ffffff;
+            }
+
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 12px;
+                padding: 0 6px;
+                color: #334e68;
+            }
+
+            QGroupBox#routeBox {
+                background-color: #f3f8fd;
+                border-color: #a9c9e5;
+            }
+
+            QGroupBox#routeBox::title {
+                color: #23699d;
+            }
+
+            QGroupBox#infoBox {
+                background-color: #f1faf9;
+                border-color: #9fd5d0;
+            }
+
+            QGroupBox#infoBox::title {
+                color: #247d78;
+            }
+
+            QGroupBox#tankBox {
+                background-color: #f4faf3;
+                border-color: #add2a9;
+            }
+
+            QGroupBox#tankBox::title {
+                color: #397b3b;
+            }
+
+            QCheckBox#autoRefuelCheck {
+                font-weight: 600;
+                color: #2f6433;
+                padding: 4px 2px;
+            }
+
+            QWidget#tankOptionCard {
+                background-color: #ffffff;
+                border: 1px solid #c6ddc3;
+                border-radius: 7px;
+            }
+
+            QLabel#tankOptionTitle {
+                color: #315d35;
+                font-size: 9.5pt;
+                font-weight: 700;
+                background: transparent;
+            }
+
+            QLabel#tankOptionHint {
+                color: #718074;
+                font-size: 8pt;
+                background: transparent;
+            }
+
+            QSpinBox#tankSpinBox {
+                min-height: 30px;
+                font-weight: 700;
+                color: #234a28;
+                background-color: #fbfefb;
+                border-color: #a9c9a5;
+            }
+
+            QGroupBox#assistantBox {
+                background-color: #f7f4fc;
+                border-color: #c7b6e1;
+            }
+
+            QGroupBox#assistantBox::title {
+                color: #7153a1;
+            }
+
+            QGroupBox#statusBox {
+                background-color: #f7f9fc;
+                border-color: #b9c8d6;
+            }
+
+            QGroupBox#statusBox::title {
+                color: #415f78;
+            }
+
+            QLineEdit, QSpinBox, QTextEdit {
+                background-color: rgba(255, 255, 255, 235);
+                border: 1px solid #b8c5d0;
+                border-radius: 5px;
+                padding: 5px;
+                selection-background-color: #2d78b7;
+            }
+
+            QLineEdit:focus, QSpinBox:focus, QTextEdit:focus {
+                border: 1px solid #2d78b7;
+                background-color: #ffffff;
+            }
+
+            QSpinBox:disabled, QLineEdit:disabled {
+                color: #8d99a5;
+                background-color: #edf1f4;
+            }
+
+            /* Pfeiltasten der Zahlenfelder:
+               oben = erhöhen (grün), unten = verringern (orange) */
+            QSpinBox {
+                padding-right: 27px;
+            }
+
+            QSpinBox::up-button {
+                subcontrol-origin: border;
+                subcontrol-position: top right;
+                width: 24px;
+                background-color: #dff3e3;
+                border-left: 1px solid #9fc9a8;
+                border-bottom: 1px solid #9fc9a8;
+                border-top-right-radius: 4px;
+            }
+
+            QSpinBox::up-button:hover {
+                background-color: #bfe6c8;
+                border-color: #6eaf7d;
+            }
+
+            QSpinBox::up-button:pressed {
+                background-color: #9fd7ab;
+            }
+
+            QSpinBox::down-button {
+                subcontrol-origin: border;
+                subcontrol-position: bottom right;
+                width: 24px;
+                background-color: #fff0d7;
+                border-left: 1px solid #e0b879;
+                border-top: 1px solid #e0b879;
+                border-bottom-right-radius: 4px;
+            }
+
+            QSpinBox::down-button:hover {
+                background-color: #ffdca5;
+                border-color: #ca9140;
+            }
+
+            QSpinBox::down-button:pressed {
+                background-color: #f5c77f;
+            }
+
+            QSpinBox::up-button:disabled,
+            QSpinBox::down-button:disabled {
+                background-color: #e8ecef;
+                border-color: #cfd6dc;
+            }
+
+            QPushButton {
+                min-height: 28px;
+                padding: 5px 11px;
+                border: 1px solid #aebbc7;
+                border-radius: 6px;
+                background-color: #f8fafc;
+                color: #243746;
+            }
+
+            QPushButton:hover {
+                background-color: #e8f2fa;
+                border-color: #6f9fc2;
+            }
+
+            QPushButton:pressed {
+                background-color: #d7e7f3;
+            }
+
+            QPushButton:disabled {
+                color: #9aa5ae;
+                background-color: #edf0f2;
+                border-color: #d4dade;
+            }
+
+            QPushButton#primaryButton {
+                color: white;
+                background-color: #2478b5;
+                border-color: #1b6399;
+                font-weight: 700;
+                font-size: 10.5pt;
+            }
+
+            QPushButton#primaryButton:hover {
+                background-color: #3189c4;
+            }
+
+            QPushButton#primaryButton:pressed {
+                background-color: #1d689e;
+            }
+
+            QPushButton#dangerButton {
+                color: #a23030;
+                background-color: #fff2f2;
+                border-color: #dfa3a3;
+                font-weight: 700;
+            }
+
+            QPushButton#dangerButton:hover {
+                color: #ffffff;
+                background-color: #c94b4b;
+                border-color: #ad3d3d;
+            }
+
+            QPushButton#secondaryButton {
+                color: #31566f;
+                background-color: #eef5fa;
+                border-color: #a8c3d7;
+                font-weight: 600;
+            }
+
+            QPushButton#secondaryButton:hover {
+                background-color: #deedf7;
+                border-color: #79a4c1;
+            }
+
+            QPushButton#assistantButton {
+                text-align: left;
+                padding-left: 14px;
+                font-weight: 600;
+                color: #5c4387;
+                background-color: #ffffff;
+                border-color: #c8b9df;
+            }
+
+            QPushButton#assistantButton:hover {
+                color: #49336f;
+                background-color: #eee7f8;
+                border-color: #9f86c7;
+            }
+
+            QLabel#infoValue {
+                color: #205d61;
+                font-weight: 700;
+            }
+
+            QLabel#targetValue {
+                color: #176f9b;
+                background-color: #e8f5fc;
+                border: 1px solid #aed5e8;
+                border-radius: 5px;
+                padding: 4px 7px;
+                font-size: 11pt;
+                font-weight: 700;
+            }
+
+            QTextEdit#statusLog {
+                font-family: monospace;
+                font-size: 9.5pt;
+                color: #263746;
+                background-color: #fbfdff;
+                border-color: #b9c8d6;
+            }
+
+            QCheckBox {
+                spacing: 7px;
+            }
+
+            QCheckBox::indicator {
+                width: 16px;
+                height: 16px;
+            }
+            """)
 
     # --------------------------------------------------
 
@@ -1396,9 +1823,9 @@ class AutomationWindow(QMainWindow):
         self.tritium_position_spinbox.setEnabled(tank_controls_enabled)
 
         if running:
-            self.tank_test_button.setText("Tankprüfung läuft...")
+            self.tank_test_button.setText("●  Tankprüfung läuft...")
         else:
-            self.tank_test_button.setText("Tankfunktion prüfen")
+            self.tank_test_button.setText("✓  Tankfunktion prüfen")
 
     # --------------------------------------------------
 
@@ -1599,9 +2026,9 @@ class AutomationWindow(QMainWindow):
         self.tritium_position_spinbox.setEnabled(tank_controls_enabled)
 
         if running:
-            self.start_button.setText("Automatik läuft...")
+            self.start_button.setText("●  Automatik läuft...")
         else:
-            self.start_button.setText("Automatik starten")
+            self.start_button.setText("▶  Automatik starten")
 
     def on_journal_status(
         self,
