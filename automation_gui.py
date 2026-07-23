@@ -338,11 +338,57 @@ class AutomationWorker(QObject):
                 state_timeout=4.0,
             )
 
-            controller.open_menu(
-                key="space",
-                prefix="carrier_management_",
-                loading_time=5.0,
-                timeout=8.0,
+            # Carrier-Management öffnen.
+            #
+            # Für diesen Menüblock wird bewusst ein eigener Grenzwert
+            # von 94 % verwendet. Helle Sterne im Hintergrund können
+            # das Referenzbild verändern, obwohl das richtige Menü
+            # bereits geöffnet ist.
+            press_key(
+                "space",
+                hold_time=0.20,
+                after_delay=5.00,
+            )
+
+            carrier_management_deadline = time.monotonic() + 8.0
+            carrier_management_state = None
+            carrier_management_best_similarity = 0.0
+
+            while time.monotonic() < carrier_management_deadline:
+                (
+                    carrier_management_state,
+                    carrier_management_similarity,
+                ) = vision.get_state(
+                    prefix="carrier_management_",
+                    threshold=0.94,
+                    extra_width=200,
+                    extra_height=200,
+                )
+
+                carrier_management_best_similarity = max(
+                    carrier_management_best_similarity,
+                    carrier_management_similarity,
+                )
+
+                if carrier_management_state is not None:
+                    break
+
+                time.sleep(0.25)
+
+            if carrier_management_state is None:
+                raise RuntimeError(
+                    "Kein Zustand mit Präfix 'carrier_management_' "
+                    "wurde innerhalb von 8.0 Sekunden sicher erkannt. "
+                    "Verwendeter Schwellenwert: 92 %. "
+                    "Bester Wert: "
+                    f"{carrier_management_best_similarity * 100:.2f} %"
+                )
+
+            self.log_message.emit(
+                "Carrier-Management wurde sicher erkannt: "
+                f"{carrier_management_state} "
+                f"({carrier_management_best_similarity * 100:.2f} %; "
+                "Grenzwert 92 %)."
             )
 
             if self._check_stop():
@@ -415,7 +461,7 @@ class AutomationWorker(QObject):
             while time.monotonic() < deadline:
                 matched, similarity = vision.check(
                     "galaxiekarte_carrier_target",
-                    threshold=0.95,
+                    threshold=0.94,
                 )
 
                 best_similarity = max(
@@ -2140,13 +2186,23 @@ class AutomationWindow(QMainWindow):
         self.scheduled_start_timer.stop()
         self.scheduled_preview_timer.stop()
         self.scheduled_start_active = False
+        self.scheduled_start_datetime = None
         self.scheduled_start_status.setText("Start wird ausgeführt...")
         self._reset_info_countdown_style()
+
+        # Die Startzeit gilt ausschließlich für den ersten Sprung.
+        # Danach wird die Option automatisch ausgeschaltet, damit
+        # alle weiteren Routensprünge ohne erneute Zeitprüfung starten.
+        self.scheduled_start_checkbox.blockSignals(True)
+        self.scheduled_start_checkbox.setChecked(False)
+        self.scheduled_start_checkbox.blockSignals(False)
+        self.scheduled_start_edit.setEnabled(False)
 
         self.log("════════════════════════════════")
         self.log("        🚀 ROUTE STARTET")
         self.log("════════════════════════════════")
         self.log("Geplante Startzeit wurde erreicht.")
+        self.log("Die Startzeit wurde nach dem ersten Start automatisch deaktiviert.")
         self.log("Die Carrier-Automatik wird jetzt gestartet.")
 
         self._set_scheduled_waiting(False)
@@ -2373,9 +2429,11 @@ class AutomationWindow(QMainWindow):
         if self.start_next_jump:
             self.start_next_jump = False
 
-            self.log("Der nächste Sprung wird jetzt gestartet.")
+            self.log("Der nächste Sprung wird jetzt direkt gestartet.")
 
-            self.start_automation()
+            # Folgesprünge dürfen nicht erneut über die einmalige
+            # Startzeitprüfung laufen.
+            self._start_automation_now()
             return
 
         self._set_automation_running(False)

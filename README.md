@@ -62,6 +62,8 @@ Beim ersten Start werden mit dem **Vision Wizard** die Referenzbilder erstellt. 
 
 - Erstellt Referenzbilder passend zu deiner Auflösung.
 - Kalibriert die Bilderkennung.
+- Referenzbilder immer so klein wie möglich und nur so groß wie nötig erstellen.
+- Nur unveränderliche Elemente (z. B. Menüs, Symbole oder Schaltflächen) erfassen. Dynamische Hintergründe wie Sterne, Nebel oder Planeten möglichst vermeiden.
 
 ## Tank Wizard
 

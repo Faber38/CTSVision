@@ -95,91 +95,91 @@
     "carrier_management_uebersicht": {
       "x": 50,
       "y": 100,
-      "width": 300,
+      "width": 70,
       "height": 1000,
       "image": "carrier_management_uebersicht.png"
     },
     "carrier_management_navigation": {
       "x": 50,
       "y": 100,
-      "width": 300,
+      "width": 70,
       "height": 1000,
       "image": "carrier_management_navigation.png"
     },
     "carrier_management_budget": {
       "x": 50,
       "y": 100,
-      "width": 300,
+      "width": 70,
       "height": 1000,
       "image": "carrier_management_budget.png"
     },
     "carrier_management_warenhandel": {
       "x": 50,
       "y": 100,
-      "width": 300,
+      "width": 70,
       "height": 1000,
       "image": "carrier_management_warenhandel.png"
     },
     "carrier_management_carrierdienste": {
       "x": 50,
       "y": 100,
-      "width": 300,
+      "width": 70,
       "height": 1000,
       "image": "carrier_management_carrierdienste.png"
     },
     "carrier_management_barkeeper": {
       "x": 50,
       "y": 100,
-      "width": 300,
+      "width": 70,
       "height": 1000,
       "image": "carrier_management_barkeeper.png"
     },
     "carrier_management_schattenhandel": {
       "x": 50,
       "y": 100,
-      "width": 300,
+      "width": 70,
       "height": 1000,
       "image": "carrier_management_schattenhandel.png"
     },
     "carrier_management_werft": {
       "x": 50,
       "y": 100,
-      "width": 300,
+      "width": 70,
       "height": 1000,
       "image": "carrier_management_werft.png"
     },
     "carrier_management_ausstattung": {
       "x": 50,
       "y": 100,
-      "width": 300,
+      "width": 70,
       "height": 1000,
       "image": "carrier_management_ausstattung.png"
     },
     "carrier_management_lackiererei": {
       "x": 50,
       "y": 100,
-      "width": 300,
+      "width": 70,
       "height": 1000,
       "image": "carrier_management_lackiererei.png"
     },
     "carrier_management_einstellungen": {
       "x": 50,
       "y": 100,
-      "width": 300,
+      "width": 70,
       "height": 1000,
       "image": "carrier_management_einstellungen.png"
     },
     "carrier_management_piloten": {
       "x": 50,
       "y": 100,
-      "width": 300,
+      "width": 70,
       "height": 1000,
       "image": "carrier_management_piloten.png"
     },
     "carrier_management_verlassen": {
       "x": 50,
       "y": 100,
-      "width": 300,
+      "width": 70,
       "height": 1000,
       "image": "carrier_management_verlassen.png"
     },
