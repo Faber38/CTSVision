@@ -2,18 +2,22 @@ from __future__ import annotations
 
 import threading
 import time
+from datetime import datetime
 from pathlib import Path
 
 from PySide6.QtCore import (
     QObject,
     Qt,
+    QDateTime,
     QThread,
+    QTimer,
     Signal,
     Slot,
 )
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
+    QDateTimeEdit,
     QFileDialog,
     QGridLayout,
     QGroupBox,
@@ -621,6 +625,12 @@ class AutomationWindow(QMainWindow):
         self.start_next_jump = False
         self.settings = load_settings()
 
+        self.scheduled_start_timer = QTimer(self)
+        self.scheduled_start_timer.setInterval(1000)
+        self.scheduled_start_timer.timeout.connect(self._check_scheduled_start)
+        self.scheduled_start_datetime: datetime | None = None
+        self.scheduled_start_active = False
+
         self.setWindowTitle("CTSVision - Carrier Automation | " "CMDR Faber38")
 
         self.resize(
@@ -746,6 +756,39 @@ class AutomationWindow(QMainWindow):
         route_layout.addWidget(QLabel("Journalordner:"), 1, 0)
         route_layout.addWidget(self.journal_directory_edit, 1, 1, 1, 2)
         route_layout.addWidget(self.journal_button, 1, 3)
+
+        # --------------------------------------------------
+        # Geplanter Start
+        # --------------------------------------------------
+
+        self.scheduled_start_checkbox = QCheckBox("Startzeit festlegen")
+        self.scheduled_start_checkbox.setObjectName("scheduledStartCheck")
+        self.scheduled_start_checkbox.setToolTip(
+            "Ist diese Option aktiviert, beginnt die Route erst "
+            "zum ausgewählten Datum und zur ausgewählten Uhrzeit."
+        )
+
+        self.scheduled_start_edit = QDateTimeEdit()
+        self.scheduled_start_edit.setObjectName("scheduledStartEdit")
+        self.scheduled_start_edit.setDisplayFormat("dd.MM.yyyy  HH:mm")
+        self.scheduled_start_edit.setCalendarPopup(True)
+        self.scheduled_start_edit.setMinimumDateTime(QDateTime.currentDateTime())
+        self.scheduled_start_edit.setDateTime(
+            QDateTime.currentDateTime().addSecs(5 * 60)
+        )
+        self.scheduled_start_edit.setEnabled(False)
+
+        self.scheduled_start_status = QLabel("Sofortstart")
+        self.scheduled_start_status.setObjectName("scheduledStartStatus")
+
+        self.scheduled_start_checkbox.toggled.connect(self._on_scheduled_start_toggled)
+        self.scheduled_start_edit.dateTimeChanged.connect(
+            self._update_scheduled_start_preview
+        )
+
+        route_layout.addWidget(self.scheduled_start_checkbox, 2, 0)
+        route_layout.addWidget(self.scheduled_start_edit, 2, 1, 1, 2)
+        route_layout.addWidget(self.scheduled_start_status, 2, 3)
 
         # --------------------------------------------------
         # Informationen
@@ -1097,6 +1140,37 @@ class AutomationWindow(QMainWindow):
                 font-weight: 600;
                 color: #2f6433;
                 padding: 4px 2px;
+            }
+
+            QCheckBox#scheduledStartCheck {
+                font-weight: 600;
+                color: #23699d;
+                padding: 4px 2px;
+            }
+
+            QDateTimeEdit#scheduledStartEdit {
+                min-height: 28px;
+                background-color: #ffffff;
+                border: 1px solid #a9c9e5;
+                border-radius: 5px;
+                padding: 4px 7px;
+                color: #234f73;
+                font-weight: 600;
+            }
+
+            QDateTimeEdit#scheduledStartEdit:disabled {
+                color: #8d99a5;
+                background-color: #edf1f4;
+                border-color: #d4dade;
+            }
+
+            QLabel#scheduledStartStatus {
+                color: #315f86;
+                background-color: #eaf3fb;
+                border: 1px solid #b8cce0;
+                border-radius: 5px;
+                padding: 4px 7px;
+                font-weight: 700;
             }
 
             QWidget#tankOptionCard {
@@ -1829,13 +1903,156 @@ class AutomationWindow(QMainWindow):
 
     # --------------------------------------------------
 
-    def start_automation(self) -> None:
-        """
-        Startet den ersten vollständigen GUI-Testlauf.
+    @Slot(bool)
+    def _on_scheduled_start_toggled(self, enabled: bool) -> None:
+        """Aktiviert oder deaktiviert die Auswahl einer Startzeit."""
 
-        Der Ablauf endet nach der Eingabe des Systemnamens
-        und dem Drücken von ENTER.
-        """
+        self.scheduled_start_edit.setEnabled(enabled)
+
+        if enabled:
+            minimum = QDateTime.currentDateTime().addSecs(60)
+            self.scheduled_start_edit.setMinimumDateTime(minimum)
+
+            if self.scheduled_start_edit.dateTime() < minimum:
+                self.scheduled_start_edit.setDateTime(
+                    QDateTime.currentDateTime().addSecs(5 * 60)
+                )
+        elif self.scheduled_start_active:
+            self._cancel_scheduled_start("Geplanter Start wurde aufgehoben.")
+
+        self._update_scheduled_start_preview()
+
+    @Slot()
+    def _update_scheduled_start_preview(self) -> None:
+        """Aktualisiert die Anzeige der verbleibenden Wartezeit."""
+
+        if not self.scheduled_start_checkbox.isChecked():
+            self.scheduled_start_status.setText("Sofortstart")
+            return
+
+        selected = self.scheduled_start_edit.dateTime().toPython()
+        remaining_seconds = int((selected - datetime.now()).total_seconds())
+
+        if remaining_seconds <= 0:
+            self.scheduled_start_status.setText("Zeit liegt in der Vergangenheit")
+            return
+
+        hours, remainder = divmod(remaining_seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+
+        if hours >= 24:
+            days, hours = divmod(hours, 24)
+            countdown = f"Start in {days} T " f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+        else:
+            countdown = f"Start in {hours:02d}:{minutes:02d}:{seconds:02d}"
+
+        self.scheduled_start_status.setText(countdown)
+
+    def _schedule_automation_start(self) -> None:
+        """Plant die geladene Route zur ausgewählten Uhrzeit ein."""
+
+        scheduled = self.scheduled_start_edit.dateTime().toPython()
+
+        if scheduled <= datetime.now():
+            QMessageBox.warning(
+                self,
+                "Ungültige Startzeit",
+                "Die gewählte Startzeit muss in der Zukunft liegen.",
+            )
+            return
+
+        self.scheduled_start_datetime = scheduled
+        self.scheduled_start_active = True
+        self.scheduled_start_timer.start()
+        self._set_scheduled_waiting(True)
+        self._update_scheduled_start_preview()
+
+        self.log("--------------------------------")
+        self.log(
+            "Route wurde eingeplant für "
+            f"{scheduled.strftime('%d.%m.%Y um %H:%M:%S')} Uhr."
+        )
+        self.log("CTSVision wartet auf die geplante Startzeit.")
+
+    @Slot()
+    def _check_scheduled_start(self) -> None:
+        """Startet die Route, sobald die geplante Zeit erreicht ist."""
+
+        if not self.scheduled_start_active:
+            self.scheduled_start_timer.stop()
+            return
+
+        self._update_scheduled_start_preview()
+
+        if self.scheduled_start_datetime is None:
+            self._cancel_scheduled_start(
+                "Geplanter Start wurde wegen eines internen Fehlers aufgehoben."
+            )
+            return
+
+        if datetime.now() < self.scheduled_start_datetime:
+            return
+
+        self.scheduled_start_timer.stop()
+        self.scheduled_start_active = False
+        self.scheduled_start_status.setText("Start wird ausgeführt...")
+
+        self.log("--------------------------------")
+        self.log("Geplante Startzeit wurde erreicht.")
+        self.log("Die Carrier-Automatik wird jetzt gestartet.")
+
+        self._set_scheduled_waiting(False)
+        self._start_automation_now()
+
+    def _cancel_scheduled_start(
+        self,
+        log_message: str | None = None,
+    ) -> None:
+        """Hebt eine wartende Startplanung auf."""
+
+        self.scheduled_start_timer.stop()
+        self.scheduled_start_active = False
+        self.scheduled_start_datetime = None
+        self.scheduled_start_status.setText("Sofortstart")
+        self._set_scheduled_waiting(False)
+
+        if log_message:
+            self.log(log_message)
+
+    def _set_scheduled_waiting(self, waiting: bool) -> None:
+        """Sperrt Änderungen, solange CTSVision auf die Startzeit wartet."""
+
+        self.start_button.setEnabled(not waiting)
+        self.stop_button.setEnabled(waiting)
+        self.route_button.setEnabled(not waiting)
+        self.restart_button.setEnabled(not waiting)
+        self.resume_button.setEnabled(not waiting)
+        self.vision_wizard_button.setEnabled(not waiting)
+        self.tank_wizard_button.setEnabled(not waiting)
+        self.tank_test_button.setEnabled(not waiting)
+        self.auto_refuel_checkbox.setEnabled(not waiting)
+        self.scheduled_start_checkbox.setEnabled(not waiting)
+        self.scheduled_start_edit.setEnabled(
+            not waiting and self.scheduled_start_checkbox.isChecked()
+        )
+
+        tank_controls_enabled = not waiting and self.auto_refuel_checkbox.isChecked()
+        self.refuel_threshold_spinbox.setEnabled(tank_controls_enabled)
+        self.tritium_position_spinbox.setEnabled(tank_controls_enabled)
+
+        if waiting:
+            self.start_button.setText("◷  Route eingeplant")
+            self.stop_button.setText("■  Planung aufheben")
+        else:
+            self.start_button.setText("▶  Automatik starten")
+            self.stop_button.setText("■  Stop")
+
+    def start_automation(self) -> None:
+        """Startet die Automatik sofort oder plant sie ein."""
+
+        if self.scheduled_start_active:
+            self.log("Die Route ist bereits eingeplant.")
+            return
 
         if self.automation_thread is not None:
             self.log("Die Automatik läuft bereits.")
@@ -1866,43 +2083,52 @@ class AutomationWindow(QMainWindow):
             QMessageBox.information(
                 self,
                 "Route abgeschlossen",
-                ("Für diese Route ist kein " "weiteres Sprungziel vorhanden."),
+                "Für diese Route ist kein weiteres Sprungziel vorhanden.",
             )
+            return
+
+        if self.scheduled_start_checkbox.isChecked():
+            self._schedule_automation_start()
+            return
+
+        self._start_automation_now()
+
+    def _start_automation_now(self) -> None:
+        """Startet den bestehenden Automatik-Worker unmittelbar."""
+
+        if self.automation_thread is not None:
+            self.log("Die Automatik läuft bereits.")
+            return
+
+        if self.route_manager is None:
+            self.log("Automatik konnte nicht starten: Keine Route geladen.")
+            return
+
+        current_jump = self.route_manager.get_current_jump()
+
+        if current_jump is None:
+            self.log("Automatik konnte nicht starten: Route abgeschlossen.")
             return
 
         self.log("--------------------------------")
         self.log("Automatik-Testlauf wird gestartet.")
-
         self.log("Ziel aus RouteManager: " f"{current_jump.system}")
-
         self._set_automation_running(True)
 
         thread = QThread(self)
-
         worker = AutomationWorker(self.route_manager)
-
         worker.moveToThread(thread)
-
         thread.started.connect(worker.run)
-
         worker.log_message.connect(self.log)
         worker.tank_status_changed.connect(self.set_tank_status)
-
         worker.completed.connect(self.automation_completed)
-
         worker.failed.connect(self.automation_failed)
-
         worker.finished.connect(thread.quit)
-
         thread.finished.connect(self.automation_thread_finished)
-
         thread.finished.connect(worker.deleteLater)
-
         thread.finished.connect(thread.deleteLater)
-
         self.automation_thread = thread
         self.automation_worker = worker
-
         thread.start()
 
     # --------------------------------------------------
@@ -1911,6 +2137,12 @@ class AutomationWindow(QMainWindow):
         """
         Fordert das kontrollierte Stoppen der Automatik an.
         """
+
+        if self.scheduled_start_active:
+            self._cancel_scheduled_start(
+                "Geplanter Start wurde vom Benutzer aufgehoben."
+            )
+            return
 
         if self.automation_worker is None:
             self.log("Die Automatik läuft derzeit nicht.")
@@ -2020,6 +2252,10 @@ class AutomationWindow(QMainWindow):
         self.tank_test_button.setEnabled(not running)
 
         self.auto_refuel_checkbox.setEnabled(not running)
+        self.scheduled_start_checkbox.setEnabled(not running)
+        self.scheduled_start_edit.setEnabled(
+            not running and self.scheduled_start_checkbox.isChecked()
+        )
 
         tank_controls_enabled = not running and self.auto_refuel_checkbox.isChecked()
         self.refuel_threshold_spinbox.setEnabled(tank_controls_enabled)
