@@ -187,7 +187,13 @@ class JournalMonitor(QObject):
         self._current_file = new_file
         self._file_position = 0
 
-        self.status_changed.emit(f"Neue Journal-Datei erkannt: {new_file.name}")
+        self.status_changed.emit("--------------------------------")
+        self.status_changed.emit(
+            "Elite Dangerous hat eine neue Journal-Datei begonnen."
+        )
+        self.status_changed.emit(f"Neue Journal-Datei: {new_file.name}")
+        self.status_changed.emit("Journal-Überwachung läuft ohne Unterbrechung weiter.")
+        self.status_changed.emit("--------------------------------")
 
     # --------------------------------------------------
     # Überwachung
