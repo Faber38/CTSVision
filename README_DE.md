@@ -2,7 +2,7 @@
 
 > **Computer-Vision- und OCR-Framework für Elite Dangerous**
 
-![CTSVision Banner](dosc/images/ctsvision_banner.png)
+![CTSVision Banner](docs/images/ctsvision_banner.png)
 
 CTSVision ist ein modulares **Computer-Vision-Framework** für **Elite
 Dangerous**.
