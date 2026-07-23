@@ -1,135 +1,167 @@
-# 🚀 CTSVision
+# CTSVision
 
-<p align="center">
-  <img src="docs/images/ctsvision_banner.png" alt="CTSVision Banner" width="100%">
-</p>
+> **Computer Vision & OCR Framework for Elite Dangerous**
 
-<p align="center">
+![CTSVision Banner](assets/ctsvision_banner.png)
 
-![Version](https://img.shields.io/badge/version-1.0.1-orange)
-![Platform](https://img.shields.io/badge/Linux-Pop!__OS-success)
-![Python](https://img.shields.io/badge/Python-3.11+-blue)
-![License](https://img.shields.io/badge/License-GPL--3.0-green)
+CTSVision is a modular **Computer Vision Framework** for **Elite
+Dangerous**. It combines **template matching**, **OCR (PaddleOCR)** and
+**Journal monitoring** to reliably detect game states.
 
-</p>
+The project is designed around reusable vision components. Optional
+modules can build on these components for analysis or other workflows.
 
-**Computer Vision für Fleet Carrier in Elite Dangerous**
+------------------------------------------------------------------------
 
-CTSVision automatisiert Fleet-Carrier-Abläufe unter Linux. Statt mit festen Zeitabläufen zu arbeiten, erkennt das Programm den tatsächlichen Spielzustand über **Computer Vision**, **OCR** und das **Elite-Journal** und trifft seine Entscheidungen dynamisch.
+## ✨ Features
 
----
+-   Vision-based menu detection
+-   OCR text recognition with PaddleOCR
+-   Live Journal monitoring
+-   Reference Image Wizard
+-   Debug & diagnostic tools
+-   Resolution-specific reference images
+-   Native Linux support
+-   Python / PySide6
 
-# ✨ Highlights
+------------------------------------------------------------------------
 
-- 🚀 Automatische Fleet-Carrier-Sprünge
-- ⛽ Automatisches Betanken des Fleet Carriers
-- 👁️ Vision-basierte Menünavigation
-- 🔍 OCR-Auswertung des Tritium-Tankfüllstands
-- 📖 Elite-Journal-Auswertung
-- 🧪 Vision Wizard zum Erstellen von Referenzbildern
-- ⛽ Tank Wizard zum Testen der Tankfunktion
-- 💾 Fortsetzen gespeicherter Routen
-- 🐧 Entwickelt für Linux (Pop!_OS)
+## 🏗 Architecture
 
----
-
-# 📸 Oberfläche
-
-> Füge hier einen Screenshot des Hauptfensters ein.
-
-<p align="center">
-  <img src="docs/images/Haupt.png" alt="Programm" width="100%">
-</p>
-
----
-
-# 🛠️ Installation
-
-```bash
-git clone https://github.com/Faber38/CTSVision.git
-cd CTSVision
-./install.sh
-./start.sh
+``` text
+Elite Dangerous
+        │
+        ▼
++----------------------+
+|    Vision Engine     |
++----------------------+
+        │
+ ┌──────┼───────────┐
+ │      │           │
+OCR   Journal   Templates
+ │      │           │
+ └──────┼───────────┘
+        ▼
+ State Detection
+        │
+        ▼
+ Optional Modules
 ```
 
----
+------------------------------------------------------------------------
 
-# 🖼️ Ersteinrichtung
+## 📂 Project Structure
 
-Beim ersten Start werden mit dem **Vision Wizard** die Referenzbilder erstellt. Dieser Schritt ist pro Rechner nur einmal notwendig.
+``` text
+CTSVision/
+├── automation_gui.py
+├── vision.py
+├── vision_wizard.py
+├── journal_monitor.py
+├── tank_controller.py
+├── ocr/
+├── references/
+├── config/
+├── tools/
+└── assets/
+```
 
-## Vision Wizard
+------------------------------------------------------------------------
 
-- Erstellt Referenzbilder passend zu deiner Auflösung.
-- Kalibriert die Bilderkennung.
-- Referenzbilder immer so klein wie möglich und nur so groß wie nötig erstellen.
-- Nur unveränderliche Elemente (z. B. Menüs, Symbole oder Schaltflächen) erfassen. Dynamische Hintergründe wie Sterne, Nebel oder Planeten möglichst vermeiden.
+## 👁 Vision Wizard
 
-## Tank Wizard
+The Vision Wizard creates reference images that match your own screen
+resolution.
 
-- Prüft die komplette Tankfunktion.
-- Testet die Tritium-Erkennung ohne einen echten Tankvorgang.
+### Best Practice
 
----
+-   Create reference images as small as possible and only as large as
+    necessary.
+-   Capture only static UI elements such as menus, icons or buttons.
+-   Avoid dynamic backgrounds like stars, nebulae or planets.
 
-# ⛽ Tritium-Position
+------------------------------------------------------------------------
 
-Mit der Einstellung **Tritium-Position** wird festgelegt, an welcher Position CTSVision die Suche nach **TRITIUM** beginnt.
+## 🔎 OCR
 
-| Wert | Bedeutung |
-|------:|-----------|
-| 0 | Erste Listenzeile |
-| -5 | 5 Zeilen nach unten |
-| -20 | 20 Zeilen nach unten |
-| -44 | 44 Zeilen nach unten |
-| 3 | 3 Zeilen nach oben |
+Uses PaddleOCR to recognize:
 
-Anschließend wird automatisch ein kleiner Bereich um diese Position durchsucht.
+-   Tank levels
+-   Cargo lists
+-   Inventory
+-   Transfer menus
+-   UI text
 
----
+------------------------------------------------------------------------
 
-# 🖥️ Voraussetzungen
+## 📖 Journal Monitoring
 
-- Linux
-- Python 3.11+
-- X11
-- Elite Dangerous: Odyssey
+-   Automatic journal detection
+-   Handles journal rotation
+-   Reads events in real time
 
----
+------------------------------------------------------------------------
 
-# 🛣️ Roadmap
+## 🛠 Debug Tools
 
-## Version 1.0.x
+-   Screenshot capture
+-   Template matching
+-   OCR debugging
+-   Detailed logging
 
-- ✅ Vision-System
-- ✅ OCR
-- ✅ Carrier-Sprünge
-- ✅ Automatische Tankfunktion
-- ✅ Routenfortsetzung
+------------------------------------------------------------------------
 
-## Geplant
+## ⚙ Requirements
 
-- Mehrere Schiffprofile
-- Erweiterte Vision-Profile
-- Weitere Komfortfunktionen
+-   Linux (tested with Pop!\_OS)
+-   Python 3.11+
+-   Elite Dangerous
+-   PaddleOCR
+-   PySide6
+-   OpenCV
 
----
+------------------------------------------------------------------------
 
-# 🤝 Feedback
+## 🚀 Installation
 
-Fehlermeldungen, Screenshots und Logdateien helfen dabei, CTSVision weiter zu verbessern.
+``` bash
+git clone https://github.com/Faber38/CTSVision.git
+cd CTSVision
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python automation_gui.py
+```
 
----
+------------------------------------------------------------------------
 
-# ❤️ Danke
+## ❤️ Philosophy
 
-Vielen Dank an alle Tester und Commander, die CTSVision ausprobieren und mit ihrem Feedback verbessern.
+CTSVision focuses on reliable state detection.
 
-**Fly safe, Commander! o7**
+If the application cannot determine the current game state safely, it
+stops instead of making assumptions.
 
-**CMDR Faber38**
+------------------------------------------------------------------------
 
----
+## 🗺 Roadmap
 
-**Version:** 1.0.1  
-**Status:** Stable
+-   ✅ Vision Wizard
+-   ✅ OCR Engine
+-   ✅ Journal Monitor
+-   ✅ Tank Wizard
+-   ✅ Debug Tools
+-   ⬜ Route Wizard
+-   ⬜ Plugin System
+-   ⬜ Statistics
+-   ⬜ Settings
+
+------------------------------------------------------------------------
+
+## 📄 License
+
+GNU GPL v3.0
+
+Developed by **CMDR Faber38** for the Elite Dangerous community.
+
+Fly safe, o7
