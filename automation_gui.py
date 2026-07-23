@@ -628,8 +628,17 @@ class AutomationWindow(QMainWindow):
         self.scheduled_start_timer = QTimer(self)
         self.scheduled_start_timer.setInterval(1000)
         self.scheduled_start_timer.timeout.connect(self._check_scheduled_start)
+
+        self.scheduled_preview_timer = QTimer(self)
+        self.scheduled_preview_timer.setInterval(1000)
+        self.scheduled_preview_timer.timeout.connect(
+            self._update_scheduled_start_preview
+        )
+
         self.scheduled_start_datetime: datetime | None = None
         self.scheduled_start_active = False
+        self.info_countdown_blink_on = False
+        self.info_countdown_blink_phase = 0
 
         self.setWindowTitle("CTSVision - Carrier Automation | " "CMDR Faber38")
 
@@ -794,11 +803,11 @@ class AutomationWindow(QMainWindow):
         # Informationen
         # --------------------------------------------------
 
-        info_box = QGroupBox("Informationen")
-        info_box.setObjectName("infoBox")
-        content_layout.addWidget(info_box)
+        self.info_box = QGroupBox("Informationen")
+        self.info_box.setObjectName("infoBox")
+        content_layout.addWidget(self.info_box)
 
-        info_layout = QGridLayout(info_box)
+        info_layout = QGridLayout(self.info_box)
 
         self.total_label = QLabel("-")
         self.progress_label = QLabel("-")
@@ -1917,10 +1926,140 @@ class AutomationWindow(QMainWindow):
                 self.scheduled_start_edit.setDateTime(
                     QDateTime.currentDateTime().addSecs(5 * 60)
                 )
-        elif self.scheduled_start_active:
-            self._cancel_scheduled_start("Geplanter Start wurde aufgehoben.")
+
+            # Die Vorschau läuft bereits vor dem eigentlichen Einplanen
+            # jede Sekunde sichtbar herunter.
+            self.scheduled_preview_timer.start()
+
+        else:
+            self.scheduled_preview_timer.stop()
+
+            if self.scheduled_start_active:
+                self._cancel_scheduled_start("Geplanter Start wurde aufgehoben.")
 
         self._update_scheduled_start_preview()
+
+    def _reset_info_countdown_style(self) -> None:
+        """Stellt die normale Farbe des Informationsbereichs wieder her."""
+
+        self.info_countdown_blink_on = False
+        self.info_countdown_blink_phase = 0
+        self.info_box.setStyleSheet("")
+
+        for label in (
+            self.total_label,
+            self.progress_label,
+            self.target_label,
+        ):
+            label.setStyleSheet("")
+
+    def _update_info_countdown_style(
+        self,
+        remaining_seconds: int,
+    ) -> None:
+        """
+        Färbt den Informationsbereich nur während einer fest eingeplanten Route.
+
+        Abstufungen:
+            über 30 Minuten   = normale Darstellung
+            30 bis 10 Minuten = leicht rot
+            10 bis 2 Minuten  = kräftiger rot
+            unter 2 Minuten   = dunkler rot
+            letzte 5 Sekunden = weicher Hell-/Dunkelrot-Wechsel
+        """
+
+        if not self.scheduled_start_active:
+            self._reset_info_countdown_style()
+            return
+
+        if remaining_seconds > 30 * 60:
+            self._reset_info_countdown_style()
+            return
+
+        if remaining_seconds <= 5:
+            self.info_countdown_blink_phase = (self.info_countdown_blink_phase + 1) % 2
+
+            if self.info_countdown_blink_phase == 0:
+                background = "#f8b4b4"
+                border = "#c84b4b"
+                title = "#8f1f1f"
+                value_background = "#ffdede"
+                value_border = "#d87474"
+                value_color = "#7e1f1f"
+            else:
+                background = "#c94f4f"
+                border = "#8f1f1f"
+                title = "#ffffff"
+                value_background = "#a83333"
+                value_border = "#7a1d1d"
+                value_color = "#ffffff"
+
+        elif remaining_seconds <= 2 * 60:
+            background = "#e99a9a"
+            border = "#b74343"
+            title = "#7f1d1d"
+            value_background = "#f4baba"
+            value_border = "#c65d5d"
+            value_color = "#7d2020"
+
+        elif remaining_seconds <= 10 * 60:
+            background = "#f6cccc"
+            border = "#d97979"
+            title = "#943737"
+            value_background = "#fbe2e2"
+            value_border = "#e09a9a"
+            value_color = "#8a3434"
+
+        else:
+            background = "#fff0f0"
+            border = "#e5a6a6"
+            title = "#a44747"
+            value_background = "#fff7f7"
+            value_border = "#efc3c3"
+            value_color = "#8f4a4a"
+
+        self.info_box.setStyleSheet(
+            "QGroupBox#infoBox {"
+            f"background-color: {background};"
+            f"border: 1px solid {border};"
+            "border-radius: 8px;"
+            "margin-top: 10px;"
+            "padding-top: 10px;"
+            "font-weight: 700;"
+            "}"
+            "QGroupBox#infoBox::title {"
+            "subcontrol-origin: margin;"
+            "left: 12px;"
+            "padding: 0 6px;"
+            f"color: {title};"
+            "}"
+        )
+
+        common_value_style = (
+            "QLabel {"
+            f"color: {value_color};"
+            f"background-color: {value_background};"
+            f"border: 1px solid {value_border};"
+            "border-radius: 5px;"
+            "padding: 4px 7px;"
+            "font-weight: 700;"
+            "}"
+        )
+
+        self.total_label.setStyleSheet(common_value_style)
+        self.progress_label.setStyleSheet(common_value_style)
+
+        self.target_label.setStyleSheet(
+            "QLabel {"
+            f"color: {value_color};"
+            f"background-color: {value_background};"
+            f"border: 1px solid {value_border};"
+            "border-radius: 5px;"
+            "padding: 4px 7px;"
+            "font-size: 11pt;"
+            "font-weight: 700;"
+            "}"
+        )
 
     @Slot()
     def _update_scheduled_start_preview(self) -> None:
@@ -1928,6 +2067,7 @@ class AutomationWindow(QMainWindow):
 
         if not self.scheduled_start_checkbox.isChecked():
             self.scheduled_start_status.setText("Sofortstart")
+            self._reset_info_countdown_style()
             return
 
         selected = self.scheduled_start_edit.dateTime().toPython()
@@ -1935,7 +2075,10 @@ class AutomationWindow(QMainWindow):
 
         if remaining_seconds <= 0:
             self.scheduled_start_status.setText("Zeit liegt in der Vergangenheit")
+            self._reset_info_countdown_style()
             return
+
+        self._update_info_countdown_style(remaining_seconds)
 
         hours, remainder = divmod(remaining_seconds, 3600)
         minutes, seconds = divmod(remainder, 60)
@@ -1963,6 +2106,7 @@ class AutomationWindow(QMainWindow):
 
         self.scheduled_start_datetime = scheduled
         self.scheduled_start_active = True
+        self.scheduled_preview_timer.stop()
         self.scheduled_start_timer.start()
         self._set_scheduled_waiting(True)
         self._update_scheduled_start_preview()
@@ -1994,10 +2138,14 @@ class AutomationWindow(QMainWindow):
             return
 
         self.scheduled_start_timer.stop()
+        self.scheduled_preview_timer.stop()
         self.scheduled_start_active = False
         self.scheduled_start_status.setText("Start wird ausgeführt...")
+        self._reset_info_countdown_style()
 
-        self.log("--------------------------------")
+        self.log("════════════════════════════════")
+        self.log("        🚀 ROUTE STARTET")
+        self.log("════════════════════════════════")
         self.log("Geplante Startzeit wurde erreicht.")
         self.log("Die Carrier-Automatik wird jetzt gestartet.")
 
@@ -2011,9 +2159,11 @@ class AutomationWindow(QMainWindow):
         """Hebt eine wartende Startplanung auf."""
 
         self.scheduled_start_timer.stop()
+        self.scheduled_preview_timer.stop()
         self.scheduled_start_active = False
         self.scheduled_start_datetime = None
         self.scheduled_start_status.setText("Sofortstart")
+        self._reset_info_countdown_style()
         self._set_scheduled_waiting(False)
 
         if log_message:
@@ -2046,6 +2196,9 @@ class AutomationWindow(QMainWindow):
         else:
             self.start_button.setText("▶  Automatik starten")
             self.stop_button.setText("■  Stop")
+
+            if self.scheduled_start_checkbox.isChecked():
+                self.scheduled_preview_timer.start()
 
     def start_automation(self) -> None:
         """Startet die Automatik sofort oder plant sie ein."""
