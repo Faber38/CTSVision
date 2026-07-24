@@ -30,12 +30,19 @@ echo "Installiere benötigte Bibliotheken..."
 pip install -r requirements.txt
 
 echo
-echo "========================================="
-echo "Installation erfolgreich abgeschlossen."
-echo
-echo "CTSVision kann jetzt über"
-echo
-echo "    ./start.sh"
-echo
-echo "gestartet werden."
-echo "========================================="
+=========================================
+Installation erfolgreich abgeschlossen.
+
+CTSVision wurde erfolgreich eingerichtet.
+
+Starten:
+
+    ./start.sh
+
+Beim ersten Start sollten mit dem
+Vision Wizard Referenzbilder für
+die eigene Bildschirmauflösung erstellt werden.
+
+Viel Spaß!
+
+=========================================

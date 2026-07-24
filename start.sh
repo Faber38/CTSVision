@@ -3,7 +3,7 @@
 cd "$(dirname "$0")"
 
 echo "========================================="
-echo "          CTSVision starten"
+echo "       CTSVision 1.5"
 echo "========================================="
 echo
 
