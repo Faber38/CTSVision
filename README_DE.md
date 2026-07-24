@@ -1,192 +1,44 @@
 # CTSVision
 
-> **Computer-Vision- und OCR-Framework für Elite Dangerous**
+> **Computer-Vision-, OCR- und Journal-Framework für Elite Dangerous**
 
-![CTSVision Banner](docs/images/ctsvision_banner.png)
+[🇩🇪 Deutsch](README_DE.md) | [🇬🇧 English](README.md)
 
-CTSVision ist ein modulares **Computer-Vision-Framework** für **Elite
-Dangerous**.
+## Was ist CTSVision?
 
-Der Schwerpunkt liegt auf einer zuverlässigen Zustands- und
-Menüerkennung durch Referenzbilder, OCR (PaddleOCR) und der Auswertung
-der Elite-Journaldateien.
+CTSVision ist ein Open-Source-Projekt zur Analyse der Benutzeroberfläche von **Elite Dangerous**.
 
-Das Framework bildet die Grundlage für verschiedene Module und Werkzeuge
-rund um Bildverarbeitung, Analyse und Zustandsüberwachung.
+Das Framework kombiniert **Computer Vision**, **OCR (PaddleOCR)** und **Journal-Auswertung**, um Spielzustände zuverlässig zu erkennen.
 
-------------------------------------------------------------------------
+### Funktionen
+- Vision-basierte Menüerkennung
+- OCR (PaddleOCR)
+- Journal-Monitor
+- Vision Wizard
+- Referenzbildverwaltung
+- Debug-Werkzeuge
+- Native Linux-Unterstützung
+- Modulare Architektur
 
-# ✨ Funktionen
-
--   Vision-basierte Menüerkennung
--   OCR-Texterkennung mit PaddleOCR
--   Live-Auswertung der Elite-Journaldateien
--   Vision Wizard zum Erstellen von Referenzbildern
--   Debug- und Diagnosewerkzeuge
--   Auflösungsabhängige Referenzbilder
--   Native Linux-Unterstützung
--   Python / PySide6 / OpenCV
-
-------------------------------------------------------------------------
-
-# 🏗 Architektur
-
-``` text
-Elite Dangerous
-        │
-        ▼
-+----------------------+
-|    Vision Engine     |
-+----------------------+
-        │
- ┌──────┼───────────┐
- │      │           │
-OCR   Journal   Referenzen
- │      │           │
- └──────┼───────────┘
-        ▼
- Zustandsanalyse
-        │
-        ▼
- Optionale Module
-```
-
-------------------------------------------------------------------------
-
-# 📂 Projektstruktur
-
-``` text
-CTSVision/
-├── automation_gui.py
-├── vision.py
-├── vision_wizard.py
-├── journal_monitor.py
-├── tank_controller.py
-├── ocr/
-├── references/
-├── config/
-├── tools/
-└── assets/
-```
-
-------------------------------------------------------------------------
-
-# 👁 Vision Wizard
-
-Der Vision Wizard erstellt Referenzbilder passend zu deiner
-Bildschirmauflösung.
-
-## Best Practice
-
--   Referenzbilder immer **so klein wie möglich und nur so groß wie
-    nötig** erstellen.
--   Nur unveränderliche Elemente wie Menüs, Symbole oder Schaltflächen
-    aufnehmen.
--   Dynamische Hintergründe (Sterne, Nebel oder Planeten) möglichst
-    vermeiden.
-
-Dadurch bleibt die Bilderkennung deutlich robuster und zuverlässiger.
-
-------------------------------------------------------------------------
-
-# 🔎 OCR
-
-CTSVision verwendet **PaddleOCR** zur Erkennung von:
-
--   Tankfüllständen
--   Inventar
--   Transferlisten
--   Menütexten
--   Benutzeroberflächen
-
-------------------------------------------------------------------------
-
-# 📖 Journal-Monitor
-
--   Automatische Erkennung der aktuellen Journaldatei
--   Unterstützt Journalwechsel während des Spiels
--   Echtzeit-Auswertung von Elite-Ereignissen
--   Grundlage für Zustandsanalysen
-
-------------------------------------------------------------------------
-
-# 🛠 Debug-Werkzeuge
-
--   Screenshot-Aufnahme
--   Template-Matching-Test
--   OCR-Debug
--   Detaillierte Protokollierung
--   Vergleich von Referenzbildern
-
-------------------------------------------------------------------------
-
-# ⚙ Voraussetzungen
-
--   Linux (getestet unter Pop!\_OS)
--   Python 3.11 oder neuer
--   Elite Dangerous
--   PaddleOCR
--   PySide6
--   OpenCV
-
-------------------------------------------------------------------------
-
-# 🚀 Installation
-
-``` bash
-git clone https://github.com/Faber38/CTSVision.git
-cd CTSVision
-
-python3 -m venv .venv
-source .venv/bin/activate
-
-pip install -r requirements.txt
-
-python automation_gui.py
-```
-
-------------------------------------------------------------------------
-
-# ❤️ Projektphilosophie
+## Projektphilosophie
 
 CTSVision trifft keine unsicheren Entscheidungen.
 
-Kann der aktuelle Spielzustand nicht eindeutig erkannt werden, wird der
-Ablauf sicher angehalten.
+**Robustheit vor Geschwindigkeit.**
 
-Beispiele:
+## Roadmap
+### Version 1.5
+- Vision Wizard
+- OCR
+- Journal Monitor
+- Tank Wizard
+- Workspace-Schutz
 
--   Menü nicht sicher erkannt → Stopp
--   OCR unsicher → Stopp
--   Referenz fehlt → Stopp
--   Falsche Arbeitsfläche → Stopp
+### Version 2.0
+- Mehrsprachigkeit
+- Windows-Unterstützung
+- Plugin-System
 
-**Robustheit steht immer an erster Stelle.**
+GNU GPL v3.0
 
-------------------------------------------------------------------------
-
-# 🗺 Roadmap
-
--   ✅ Vision Wizard
--   ✅ OCR-Engine
--   ✅ Journal-Monitor
--   ✅ Tank Wizard
--   ✅ Debug-Werkzeuge
--   ⬜ Route Wizard
--   ⬜ Plugin-System
--   ⬜ Einstellungen
--   ⬜ Statistiken
-
-------------------------------------------------------------------------
-
-# 📄 Lizenz
-
-Dieses Projekt steht unter der **GNU General Public License v3.0**.
-
-Weitere Informationen befinden sich in der Datei **LICENSE**.
-
-------------------------------------------------------------------------
-
-Entwickelt von **CMDR Faber38** für die Elite-Dangerous-Community.
-
-**Fly safe -- o7**
+Entwickelt von **CMDR Faber38**

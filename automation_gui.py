@@ -750,7 +750,9 @@ class AutomationWindow(QMainWindow):
         title_label = QLabel("CTSVision")
         title_label.setObjectName("appTitle")
 
-        subtitle_label = QLabel("Fleet Carrier Automation  •  CMDR Faber38")
+        title_label = QLabel("CTSVision")
+        subtitle_label = QLabel("Computer Vision • OCR • Journal Framework")
+        author_label = QLabel("by CMDR Faber38")
         subtitle_label.setObjectName("appSubtitle")
 
         title_block.addWidget(title_label)
@@ -759,7 +761,7 @@ class AutomationWindow(QMainWindow):
         header_layout.addLayout(title_block)
         header_layout.addStretch()
 
-        self.version_label = QLabel("Version 1.0.1\nStable")
+        self.version_label = QLabel("Version 1.5\nStable")
         self.version_label.setObjectName("versionBadge")
         self.version_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.version_label.setMinimumWidth(110)

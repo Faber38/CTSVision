@@ -1,44 +1,38 @@
 # Mitwirken an CTSVision
 
-Vielen Dank für dein Interesse an CTSVision!
+Vielen Dank für dein Interesse an **CTSVision**!
 
-Egal ob Fehlerbericht, Verbesserungsvorschlag oder eigener Code – jeder Beitrag hilft dabei, CTSVision besser zu machen.
+CTSVision ist ein Open-Source-Projekt, das sich auf **Computer Vision**, **OCR** und die **Analyse von Spielzuständen** in *Elite Dangerous* konzentriert.
+
+Jeder Beitrag – ob Fehlerbericht, Dokumentation, Ideen oder Quellcode – hilft dabei, das Projekt weiterzuentwickeln.
 
 ---
 
 # Projektziel
 
-CTSVision ist eine Open-Source-Software zur visuellen Automatisierung von **Elite Dangerous**.
+CTSVision stellt ein modulares Framework für:
 
-Das Projekt verfolgt einen klaren Grundsatz:
+- Computer Vision
+- OCR (PaddleOCR)
+- Journal-Auswertung
+- Zustandsanalyse
+- Referenzbildverwaltung
 
-**Keine Speicherzugriffe. Keine Code-Injektion. Keine Manipulation des Spiels.**
+bereit.
 
-Alle Entscheidungen basieren ausschließlich auf:
-
-- Bildauswertung
-- Journal-Dateien von Elite Dangerous
-- Tastatureingaben
-- Maussteuerung
-
-CTSVision verhält sich wie ein menschlicher Spieler und automatisiert ausschließlich wiederkehrende Bedienabläufe.
+Die einzelnen Module bauen auf diesen Kernkomponenten auf.
 
 ---
 
 # Projektphilosophie
 
-Das wichtigste Ziel von CTSVision ist Zuverlässigkeit.
+CTSVision verfolgt drei Grundprinzipien:
 
-Das Programm soll sich jederzeit selbst wieder in einen definierten Zustand bringen können.
+- **Robustheit vor Geschwindigkeit**
+- **Klare Zustandsanalyse statt Vermutungen**
+- **Modulare und wartbare Architektur**
 
-Dazu gehören unter anderem:
-
-- Erkennen des aktuellen Menüs
-- Automatische Korrektur falscher Zustände
-- Selbstheilende Navigation
-- Neuaufbau von Referenzbildern mit dem Vision Wizard
-
-Stabilität ist wichtiger als Geschwindigkeit.
+Kann ein Zustand nicht eindeutig erkannt werden, wird der Ablauf sicher angehalten.
 
 ---
 
@@ -46,19 +40,15 @@ Stabilität ist wichtiger als Geschwindigkeit.
 
 Bitte verwende für Fehlerberichte die GitHub-Issues.
 
-Hilfreiche Informationen sind:
+Hilfreiche Informationen:
 
 - Betriebssystem
 - Desktop-Umgebung
-- X11 oder Wayland
 - Bildschirmauflösung
-- Skalierung
-- Elite Dangerous Version
-- CTSVision Version
+- CTSVision-Version
+- Elite-Dangerous-Version
 - Log-Ausgabe
 - Screenshot (falls hilfreich)
-
-Bitte veröffentliche keine Passwörter, API-Schlüssel oder persönliche Daten.
 
 ---
 
@@ -66,82 +56,71 @@ Bitte veröffentliche keine Passwörter, API-Schlüssel oder persönliche Daten.
 
 Neue Ideen sind jederzeit willkommen.
 
-Bei größeren Änderungen bitte zunächst ein GitHub-Issue eröffnen, damit die Umsetzung gemeinsam besprochen werden kann.
+Bitte größere Änderungen zunächst als GitHub-Issue diskutieren.
 
 ---
 
 # Pull Requests
 
-Bitte achte auf folgende Punkte:
+Bitte achte auf:
 
 - Eine Änderung pro Pull Request
-- Verständliche Commit-Nachrichten
-- Sauber strukturierter Code
-- Vor dem Commit testen
-- Neue Funktionen möglichst dokumentieren
-
----
-
-# Programmierstil
-
-Grundsätzlich gilt:
-
-- Python 3
-- Gut lesbarer Code
-- Lesbarkeit vor Kürze
-- So wenige Abhängigkeiten wie möglich
-- Kommentare dort, wo sie sinnvoll sind
-
-Eine einheitliche Codebasis ist wichtiger als persönlicher Programmierstil.
+- Saubere Commit-Nachrichten
+- Lesbaren Python-Code
+- Dokumentation neuer Funktionen
+- Vorherige Tests
 
 ---
 
 # Referenzbilder
 
-Der Ordner
+Referenzbilder werden mit dem **Vision Wizard** erstellt.
 
-references/
+## Best Practice
 
-enthält benutzerspezifische Referenzbilder.
-
-Diese werden bewusst **nicht** versioniert.
-
-Die allgemeinen Vorlagen befinden sich im Ordner
-
-assets/templates/
-
-und gehören zum Projekt.
+- Referenzbilder immer **so klein wie möglich und nur so groß wie nötig** aufnehmen.
+- Nur statische Elemente (Menüs, Symbole, Schaltflächen) verwenden.
+- Dynamische Hintergründe vermeiden.
 
 ---
 
 # Langfristige Ziele
 
-CTSVision soll sich zu einer vollständigen Automatisierungsplattform für Fleet Carrier in Elite Dangerous entwickeln.
+## Version 1.x
 
-Geplant sind unter anderem:
+- Vision Framework
+- OCR
+- Journal Monitor
+- Vision Wizard
+- Tank Wizard
+- Debug-Werkzeuge
 
-- Visuelle Navigation
-- Selbstheilende Menüführung
-- Automatische Carrier-Routen
-- Automatisches Auftanken des Fleet Carriers
-- Tritium-Management
-- Verwaltung der Carrier-Dienste
-- Zuverlässige Wiederherstellung nach Fehlern
+## Version 2.0
+
+- Mehrsprachigkeit
+- Windows-Unterstützung
+- Plugin-System
+- Erweiterte Vision-Module
 
 ---
 
 # Fair Play
 
-CTSVision greift nicht in den Speicher von Elite Dangerous ein und verändert keine Programmdateien.
+CTSVision greift **nicht** in den Speicher von Elite Dangerous ein und verändert keine Programmdateien.
 
-Das Projekt nutzt ausschließlich offiziell verfügbare Informationen und simuliert Eingaben über Tastatur und Maus.
+Das Framework arbeitet ausschließlich mit:
+
+- Bildanalyse
+- OCR
+- Journaldaten
+- Referenzbildern
 
 ---
 
-# Danke!
+# Vielen Dank!
 
-Jeder Beitrag – egal ob Fehlerbericht, Verbesserungsvorschlag oder Quellcode – hilft dabei, CTSVision weiterzuentwickeln.
+Vielen Dank für deinen Beitrag zu CTSVision.
 
-Vielen Dank für deine Unterstützung!
+Gemeinsam entwickeln wir ein leistungsfähiges **Computer-Vision-Framework** für die Elite-Dangerous-Community.
 
-**o7 Commander**
+**Fly safe – o7**
