@@ -8,6 +8,8 @@
 
 CTSVision ist ein Open-Source-Projekt zur Analyse der Benutzeroberfläche von **Elite Dangerous**.
 
+![CTSVision Banner](docs/images/ctsvision_banner.png)
+
 Das Framework kombiniert **Computer Vision**, **OCR (PaddleOCR)** und **Journal-Auswertung**, um Spielzustände zuverlässig zu erkennen.
 
 ### Funktionen
@@ -33,6 +35,8 @@ CTSVision trifft keine unsicheren Entscheidungen.
 - Journal Monitor
 - Tank Wizard
 - Workspace-Schutz
+
+![CTSVision Banner](docs/images/Haupt.png)
 
 ### Version 2.0
 - Mehrsprachigkeit

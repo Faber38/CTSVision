@@ -8,6 +8,8 @@
 
 CTSVision is an open-source framework combining Computer Vision, OCR and Journal monitoring for Elite Dangerous.
 
+![CTSVision Banner](docs/images/ctsvision_banner.png)
+
 ### Features
 - Vision-based menu detection
 - OCR
