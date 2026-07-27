@@ -803,7 +803,7 @@ class AutomationWindow(QMainWindow):
         header_layout.addLayout(title_block)
         header_layout.addStretch()
 
-        self.version_label = QLabel("Version 1.5\nStable")
+        self.version_label = QLabel("Version 1.5.5\nStable")
         self.version_label.setObjectName("versionBadge")
         self.version_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.version_label.setMinimumWidth(110)
