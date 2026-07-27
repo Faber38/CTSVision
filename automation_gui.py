@@ -790,9 +790,23 @@ class AutomationWindow(QMainWindow):
         self.route_edit.setReadOnly(True)
 
         self.route_button = QPushButton("Route auswählen...")
+        self.route_button.setToolTip(
+            "Lädt eine Carrier-Route aus einer CSV-Datei.\n\n"
+            "Unterstützte Formate:\n"
+            "• Elite Dangerous Discovery (EDD)\n"
+            "• Fleet Carrier Router\n\n"
+            "Das Dateiformat wird automatisch erkannt."
+        )
         self.route_button.clicked.connect(self.select_route)
 
         self.route_info_button = QPushButton("Routen-Info")
+        self.route_info_button.setToolTip(
+            "Zeigt ausführliche Informationen zur geladenen Route an.\n\n"
+            "Dazu gehören unter anderem:\n"
+            "• Anzahl und Fortschritt der Sprünge\n"
+            "• aktuelles Ziel\n"
+            "• Strecke, Zeit und Tritiumbedarf"
+        )
         self.route_info_button.clicked.connect(self.open_route_info)
 
         route_layout.addWidget(QLabel("Datei:"), 0, 0)
@@ -808,6 +822,11 @@ class AutomationWindow(QMainWindow):
         self.journal_directory_edit.setReadOnly(True)
 
         self.journal_button = QPushButton("Journalordner...")
+        self.journal_button.setToolTip(
+            "Wählt den Ordner mit den Elite-Dangerous-Journaldateien aus.\n\n"
+            "CTSVision überwacht diesen Ordner, um relevante "
+            "Spielereignisse und Carrier-Sprünge zu erkennen."
+        )
         self.journal_button.clicked.connect(self.select_journal_directory)
 
         route_layout.addWidget(QLabel("Journalordner:"), 1, 0)
@@ -1017,11 +1036,22 @@ class AutomationWindow(QMainWindow):
         self.vision_wizard_button = QPushButton("🚀  Sprung Wizard")
         self.vision_wizard_button.setObjectName("assistantButton")
         self.vision_wizard_button.setMinimumHeight(42)
+        self.vision_wizard_button.setToolTip(
+            "Erstellt und prüft die Referenzbilder für die Sprungnavigation.\n\n"
+            "Tipp: Referenzbilder immer so klein wie möglich und "
+            "nur so groß wie nötig aufnehmen. Dynamische Hintergründe "
+            "wie Sterne, Nebel oder Planeten möglichst vermeiden."
+        )
         self.vision_wizard_button.clicked.connect(self.open_vision_wizard)
 
         self.tank_wizard_button = QPushButton("⛽  Tank Wizard")
         self.tank_wizard_button.setObjectName("assistantButton")
         self.tank_wizard_button.setMinimumHeight(42)
+        self.tank_wizard_button.setToolTip(
+            "Erstellt und prüft die Referenzbilder für das Tankmodul.\n\n"
+            "Der Wizard unterstützt bei Tankanzeige, Inventar, "
+            "Transferliste und Tritium-Erkennung."
+        )
         self.tank_wizard_button.clicked.connect(self.open_tank_wizard)
 
         self.tank_test_button = QPushButton("✓  Tankfunktion prüfen")
@@ -1064,16 +1094,29 @@ class AutomationWindow(QMainWindow):
 
         self.restart_button = QPushButton("↺  Route neu starten")
         self.restart_button.setObjectName("secondaryButton")
+        self.restart_button.setToolTip(
+            "Setzt den gespeicherten Fortschritt der geladenen Route auf 0 zurück.\n\n"
+            "Bereits abgeschlossene Sprünge werden wieder als offen markiert."
+        )
         self.restart_button.clicked.connect(self.restart_route)
 
         self.resume_button = QPushButton("↪  Route fortsetzen")
         self.resume_button.setObjectName("secondaryButton")
+        self.resume_button.setToolTip(
+            "Aktualisiert die Anzeige der geladenen Route.\n\n"
+            "Der gespeicherte Routenfortschritt bleibt erhalten."
+        )
         self.resume_button.clicked.connect(self.refresh_route_display)
 
         self.start_button = QPushButton("▶  Automatik starten")
         self.start_button.setObjectName("primaryButton")
         self.start_button.setMinimumHeight(36)
         self.start_button.setMinimumWidth(180)
+        self.start_button.setToolTip(
+            "Startet die geladene Route sofort oder zur festgelegten Startzeit.\n\n"
+            "Vor dem Start sollten Route, Journalordner und Referenzbilder "
+            "vollständig eingerichtet und geprüft sein."
+        )
         self.start_button.clicked.connect(self.start_automation)
 
         self.stop_button = QPushButton("■  Stop")
