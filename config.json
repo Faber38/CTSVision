@@ -94,93 +94,93 @@
     },
     "carrier_management_uebersicht": {
       "x": 70,
-      "y": 170,
+      "y": 165,
       "width": 40,
-      "height": 40,
+      "height": 880,
       "image": "carrier_management_uebersicht.png"
     },
     "carrier_management_navigation": {
       "x": 70,
-      "y": 230,
+      "y": 165,
       "width": 40,
-      "height": 40,
+      "height": 880,
       "image": "carrier_management_navigation.png"
     },
     "carrier_management_budget": {
       "x": 70,
-      "y": 285,
+      "y": 165,
       "width": 40,
-      "height": 40,
+      "height": 880,
       "image": "carrier_management_budget.png"
     },
     "carrier_management_warenhandel": {
       "x": 70,
-      "y": 340,
+      "y": 165,
       "width": 40,
-      "height": 40,
+      "height": 880,
       "image": "carrier_management_warenhandel.png"
     },
     "carrier_management_carrierdienste": {
       "x": 70,
-      "y": 400,
+      "y": 165,
       "width": 40,
-      "height": 40,
+      "height": 880,
       "image": "carrier_management_carrierdienste.png"
     },
     "carrier_management_barkeeper": {
       "x": 70,
-      "y": 470,
+      "y": 165,
       "width": 40,
-      "height": 40,
+      "height": 880,
       "image": "carrier_management_barkeeper.png"
     },
     "carrier_management_schattenhandel": {
       "x": 70,
-      "y": 530,
+      "y": 165,
       "width": 40,
-      "height": 40,
+      "height": 880,
       "image": "carrier_management_schattenhandel.png"
     },
     "carrier_management_werft": {
       "x": 70,
-      "y": 585,
+      "y": 165,
       "width": 40,
-      "height": 40,
+      "height": 880,
       "image": "carrier_management_werft.png"
     },
     "carrier_management_ausstattung": {
       "x": 70,
-      "y": 645,
+      "y": 165,
       "width": 40,
-      "height": 40,
+      "height": 880,
       "image": "carrier_management_ausstattung.png"
     },
     "carrier_management_lackiererei": {
       "x": 70,
-      "y": 710,
+      "y": 165,
       "width": 40,
-      "height": 40,
+      "height": 880,
       "image": "carrier_management_lackiererei.png"
     },
     "carrier_management_einstellungen": {
       "x": 70,
-      "y": 770,
+      "y": 165,
       "width": 40,
-      "height": 40,
+      "height": 880,
       "image": "carrier_management_einstellungen.png"
     },
     "carrier_management_piloten": {
       "x": 70,
-      "y": 940,
+      "y": 165,
       "width": 40,
-      "height": 40,
+      "height": 880,
       "image": "carrier_management_piloten.png"
     },
     "carrier_management_verlassen": {
       "x": 70,
-      "y": 1000,
+      "y": 165,
       "width": 40,
-      "height": 40,
+      "height": 880,
       "image": "carrier_management_verlassen.png"
     },
     "galaxiekarte_action_button_a": {

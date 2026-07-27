@@ -2,9 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from pathlib import Path
-import subprocess
-
-from PIL import Image, ImageDraw
+from PIL import Image
 
 from app_paths import (
     APP_DIR,
@@ -28,135 +26,75 @@ class Vision:
         self.project_dir = APP_DIR
         self.references_dir = REFERENCES_DIR
 
-    def _show_failed_comparison(
+        # Letzte fehlgeschlagene Bildprüfung.
+        # Sie wird erst beim endgültigen Abbruch gespeichert und angezeigt,
+        # damit bei wiederholten Prüfversuchen nicht mehrere Fenster aufgehen.
+        self._last_failed_current_image: Image.Image | None = None
+        self._last_failed_reference_path: Path | None = None
+        self._last_failed_reference_name: str | None = None
+        self._last_failed_similarity: float = 0.0
+        self._last_failed_threshold: float = 0.0
+
+    def _remember_failed_comparison(
         self,
         *,
         current_image: Image.Image,
         reference_path: Path,
         reference_name: str,
         similarity: float,
-    ) -> Path:
+        threshold: float,
+    ) -> None:
+        """Merkt sich die letzte fehlgeschlagene Bildprüfung."""
+
+        self._last_failed_current_image = current_image.copy()
+        self._last_failed_reference_path = reference_path
+        self._last_failed_reference_name = reference_name
+        self._last_failed_similarity = float(similarity)
+        self._last_failed_threshold = float(threshold)
+
+    def save_last_failure(self) -> tuple[Path, Path] | None:
         """
-        Erstellt bei einer fehlgeschlagenen Zustandserkennung
-        ein Vergleichsbild und öffnet es im Bildbetrachter.
+        Speichert bei einem endgültigen Vision-Fehler ausschließlich
+        den tatsächlich aufgenommenen, nicht passenden Bildausschnitt
+        unter ``references/debug``.
 
-        Links:
-            aktueller Ausschnitt aus Elite
-
-        Rechts:
-            bestes Referenzbild
+        Das Referenzbild wird nicht kopiert und es wird auch kein
+        Vergleichsbild erzeugt. Stattdessen werden beide Pfade an die
+        GUI zurückgegeben. Dort kann der Benutzer über den Button
+        „Vergleichen“ beide Bilder direkt nebeneinander anzeigen.
         """
 
-        debug_dir = DEBUG_DIR / "vision"
+        current_image = self._last_failed_current_image
+        reference_path = self._last_failed_reference_path
+        reference_name = self._last_failed_reference_name
 
-        debug_dir.mkdir(
-            parents=True,
-            exist_ok=True,
-        )
-
-        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-
-        reference_image = Image.open(reference_path).convert("RGB")
-
-        current_rgb = current_image.convert("RGB")
-
-        # Falls sich die Bildgrößen unterscheiden,
-        # wird das aktuelle Bild auf die Größe der Referenz gebracht.
-        if current_rgb.size != reference_image.size:
-            current_rgb = current_rgb.resize(
-                reference_image.size,
-                Image.Resampling.LANCZOS,
-            )
-
-        title_height = 70
-        spacing = 10
-
-        image_width = reference_image.width
-        image_height = reference_image.height
-
-        comparison = Image.new(
-            "RGB",
-            (
-                image_width * 2 + spacing,
-                image_height + title_height,
-            ),
-            "black",
-        )
-
-        comparison.paste(
-            current_rgb,
-            (
-                0,
-                title_height,
-            ),
-        )
-
-        comparison.paste(
-            reference_image,
-            (
-                image_width + spacing,
-                title_height,
-            ),
-        )
-
-        draw = ImageDraw.Draw(comparison)
-
-        draw.text(
-            (
-                10,
-                8,
-            ),
-            "Aktueller Elite-Ausschnitt",
-            fill="white",
-        )
-
-        draw.text(
-            (
-                image_width + spacing + 10,
-                8,
-            ),
-            f"Referenz: {reference_name}",
-            fill="white",
-        )
-
-        draw.text(
-            (
-                10,
-                35,
-            ),
-            (
-                "Keine sichere Erkennung – "
-                f"beste Übereinstimmung: "
-                f"{similarity * 100:.2f} %"
-            ),
-            fill="white",
-        )
-
-        comparison_path = debug_dir / (
-            f"{timestamp}_" f"{reference_name}_" f"{similarity * 100:.2f}.png"
-        )
-
-        comparison.save(comparison_path)
-
-        print("Vision: Debug-Vergleich gespeichert: " f"{comparison_path}")
+        if current_image is None or reference_path is None or reference_name is None:
+            return None
 
         try:
-            subprocess.Popen(
-                [
-                    "xdg-open",
-                    str(comparison_path),
-                ],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
+            debug_dir = self.references_dir / "debug"
+            debug_dir.mkdir(parents=True, exist_ok=True)
+
+            timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            safe_name = (
+                "".join(
+                    character if character.isalnum() or character in "-_" else "_"
+                    for character in reference_name
+                ).strip("_")
+                or "vision_fehler"
             )
 
-        except OSError as exc:
-            print(
-                "Vision: Vergleichsbild konnte nicht "
-                f"automatisch geöffnet werden: {exc}"
-            )
+            failed_path = debug_dir / f"{timestamp}_{safe_name}_FEHLBILD.png"
+            current_image.save(failed_path)
 
-        return comparison_path
+            print(f"Vision: Fehlerbild gespeichert: {failed_path}")
+            print(f"Vision: Zugehörige Referenz: {reference_path}")
+
+            return failed_path, reference_path
+
+        except Exception as exc:
+            print(f"Vision: Fehlerbild konnte nicht gespeichert werden: {exc}")
+            return None
 
     def _get_elite_window(self) -> WindowInfo:
         """
@@ -251,6 +189,15 @@ class Vision:
         )
 
         matched = similarity >= threshold
+
+        if not matched:
+            self._remember_failed_comparison(
+                current_image=image,
+                reference_path=reference_path,
+                reference_name=reference_name,
+                similarity=similarity,
+                threshold=threshold,
+            )
 
         return matched, similarity
 
@@ -462,8 +409,8 @@ class Vision:
         *,
         prefix: str = "main_menu_block_",
         threshold: float = 0.95,
-        extra_width: int = 200,
-        extra_height: int = 200,
+        extra_width: int = 2,
+        extra_height: int = 2,
     ) -> tuple[str | None, float]:
         """
         Ermittelt den aktuell sichtbaren Menü-Zustand.
@@ -541,11 +488,12 @@ class Vision:
             )
 
             if best_state is not None and best_reference_path is not None:
-                self._show_failed_comparison(
+                self._remember_failed_comparison(
                     current_image=current_menu_block,
                     reference_path=best_reference_path,
                     reference_name=best_state,
                     similarity=best_similarity,
+                    threshold=threshold,
                 )
 
             return None, best_similarity

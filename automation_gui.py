@@ -14,10 +14,12 @@ from PySide6.QtCore import (
     Signal,
     Slot,
 )
+from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
     QDateTimeEdit,
+    QDialog,
     QFileDialog,
     QGridLayout,
     QGroupBox,
@@ -27,6 +29,7 @@ from PySide6.QtWidgets import (
     QMainWindow,
     QMessageBox,
     QPushButton,
+    QScrollArea,
     QSpinBox,
     QTextEdit,
     QVBoxLayout,
@@ -71,11 +74,13 @@ class TankTestWorker(QObject):
     log_message = Signal(str)
     tank_status_changed = Signal(str)
     completed = Signal()
-    failed = Signal(str)
+    failed = Signal(str, str, str)
     finished = Signal()
 
     @Slot()
     def run(self) -> None:
+        vision: Vision | None = None
+
         try:
             vision = Vision()
 
@@ -105,7 +110,16 @@ class TankTestWorker(QObject):
             self.completed.emit()
 
         except Exception as exc:
-            self.failed.emit(str(exc))
+            failed_path = ""
+            reference_path = ""
+
+            if vision is not None:
+                failure = vision.save_last_failure()
+                if failure is not None:
+                    failed_path = str(failure[0])
+                    reference_path = str(failure[1])
+
+            self.failed.emit(str(exc), failed_path, reference_path)
 
         finally:
             self.finished.emit()
@@ -127,7 +141,7 @@ class AutomationWorker(QObject):
     log_message = Signal(str)
     tank_status_changed = Signal(str)
     completed = Signal(str)
-    failed = Signal(str)
+    failed = Signal(str, str, str)
     finished = Signal()
 
     def __init__(
@@ -179,6 +193,8 @@ class AutomationWorker(QObject):
         unabhängig von Erfolg oder Fehler immer gesetzt.
         """
 
+        vision: Vision | None = None
+
         try:
             self.log_message.emit(
                 "Automatische Tankroutine wird während der Abkühlzeit gestartet."
@@ -214,8 +230,19 @@ class AutomationWorker(QObject):
             self.log_message.emit("Automatische Tankroutine wurde erfolgreich beendet.")
 
         except Exception as exc:
+            failed_path = ""
+            reference_path = ""
+
+            if vision is not None:
+                failure = vision.save_last_failure()
+                if failure is not None:
+                    failed_path = str(failure[0])
+                    reference_path = str(failure[1])
+
             tank_result["success"] = False
             tank_result["error"] = exc
+            tank_result["failed_image_path"] = failed_path
+            tank_result["reference_image_path"] = reference_path
 
             self.log_message.emit(
                 "Automatische Tankroutine ist fehlgeschlagen: " f"{exc}"
@@ -229,6 +256,8 @@ class AutomationWorker(QObject):
         """
         Führt den aktuellen Integrationstest aus.
         """
+
+        vision: Vision | None = None
 
         try:
             current_jump = self.route_manager.get_current_jump()
@@ -361,8 +390,8 @@ class AutomationWorker(QObject):
                 ) = vision.get_state(
                     prefix="carrier_management_",
                     threshold=0.94,
-                    extra_width=200,
-                    extra_height=200,
+                    # extra_width=200,
+                    # extra_height=200,
                 )
 
                 carrier_management_best_similarity = max(
@@ -640,7 +669,20 @@ class AutomationWorker(QObject):
             self.completed.emit(system_name)
 
         except Exception as exc:
-            self.failed.emit(str(exc))
+            failed_path = ""
+            reference_path = ""
+
+            if vision is not None:
+                failure = vision.save_last_failure()
+                if failure is not None:
+                    failed_path = str(failure[0])
+                    reference_path = str(failure[1])
+
+            if not failed_path and tank_result is not None:
+                failed_path = str(tank_result.get("failed_image_path", ""))
+                reference_path = str(tank_result.get("reference_image_path", ""))
+
+            self.failed.emit(str(exc), failed_path, reference_path)
 
         finally:
             self.finished.emit()
@@ -1933,10 +1975,101 @@ class AutomationWindow(QMainWindow):
 
     # --------------------------------------------------
 
-    @Slot(str)
+    def _show_image_comparison(
+        self,
+        failed_image_path: str,
+        reference_image_path: str,
+    ) -> None:
+        """Zeigt Fehlerbild und Referenzbild direkt nebeneinander an."""
+
+        failed_path = Path(failed_image_path)
+        reference_path = Path(reference_image_path)
+
+        if not failed_path.exists() or not reference_path.exists():
+            QMessageBox.warning(
+                self,
+                "Vergleich nicht möglich",
+                "Fehlerbild oder Referenzbild wurde nicht gefunden.",
+            )
+            return
+
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Bildvergleich – Fehlerbild und Referenz")
+        dialog.resize(1100, 700)
+
+        layout = QVBoxLayout(dialog)
+        image_layout = QHBoxLayout()
+
+        for title, image_path in (
+            ("Fehlerbild", failed_path),
+            ("Referenzbild", reference_path),
+        ):
+            column = QVBoxLayout()
+            title_label = QLabel(f"<b>{title}</b><br>{image_path.name}")
+            title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+            image_label = QLabel()
+            image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            pixmap = QPixmap(str(image_path))
+
+            if pixmap.isNull():
+                image_label.setText("Bild konnte nicht geladen werden.")
+            else:
+                image_label.setPixmap(pixmap)
+
+            scroll = QScrollArea()
+            scroll.setWidget(image_label)
+            scroll.setWidgetResizable(True)
+
+            column.addWidget(title_label)
+            column.addWidget(scroll, 1)
+            image_layout.addLayout(column, 1)
+
+        layout.addLayout(image_layout, 1)
+
+        close_button = QPushButton("Schließen")
+        close_button.clicked.connect(dialog.accept)
+        layout.addWidget(close_button, alignment=Qt.AlignmentFlag.AlignRight)
+
+        dialog.exec()
+
+    def _show_error_with_compare(
+        self,
+        *,
+        title: str,
+        error_message: str,
+        failed_image_path: str,
+        reference_image_path: str,
+    ) -> None:
+        """Zeigt den Fehlerdialog und bei Bildfehlern einen Vergleichsbutton."""
+
+        message_box = QMessageBox(self)
+        message_box.setIcon(QMessageBox.Icon.Critical)
+        message_box.setWindowTitle(title)
+        message_box.setText(error_message)
+        message_box.addButton(QMessageBox.StandardButton.Ok)
+
+        compare_button = None
+        if failed_image_path and reference_image_path:
+            compare_button = message_box.addButton(
+                "Vergleichen",
+                QMessageBox.ButtonRole.ActionRole,
+            )
+
+        message_box.exec()
+
+        if compare_button is not None and message_box.clickedButton() is compare_button:
+            self._show_image_comparison(
+                failed_image_path,
+                reference_image_path,
+            )
+
+    @Slot(str, str, str)
     def tank_test_failed(
         self,
         error_message: str,
+        failed_image_path: str,
+        reference_image_path: str,
     ) -> None:
         """
         Zeigt einen Fehler der Tankfunktions-Prüfung an.
@@ -1948,10 +2081,11 @@ class AutomationWindow(QMainWindow):
             "wenn die Ursache behoben ist."
         )
 
-        QMessageBox.critical(
-            self,
-            "Tankprüfung fehlgeschlagen",
-            error_message,
+        self._show_error_with_compare(
+            title="Tankprüfung fehlgeschlagen",
+            error_message=error_message,
+            failed_image_path=failed_image_path,
+            reference_image_path=reference_image_path,
         )
 
     # --------------------------------------------------
@@ -2441,10 +2575,12 @@ class AutomationWindow(QMainWindow):
 
     # --------------------------------------------------
 
-    @Slot(str)
+    @Slot(str, str, str)
     def automation_failed(
         self,
         error_message: str,
+        failed_image_path: str,
+        reference_image_path: str,
     ) -> None:
         """
         Zeigt einen Fehler aus dem Worker an.
@@ -2452,10 +2588,11 @@ class AutomationWindow(QMainWindow):
 
         self.log("Fehler im Automatik-Test: " f"{error_message}")
 
-        QMessageBox.critical(
-            self,
-            "Automatik-Fehler",
-            error_message,
+        self._show_error_with_compare(
+            title="Automatik-Fehler",
+            error_message=error_message,
+            failed_image_path=failed_image_path,
+            reference_image_path=reference_image_path,
         )
 
     # --------------------------------------------------
