@@ -82,7 +82,22 @@ CTSVision trifft keine unsicheren Entscheidungen.
 
 **Robustheit vor Geschwindigkeit.**
 
-## Roadmap
+### Version 1.6
+✨ Neu
+ - Route wird direkt nach dem CarrierJump aktualisiert.
+ - Das aktuelle Ziel wird unmittelbar als erledigt markiert.
+ - Das nächste Sprungziel wird sofort in der GUI angezeigt.
+ - Die Routenanzeige ist dadurch während der gesamten Abkühlzeit aktuell.
+ - Tankprüfung vor dem ersten Sprung.
+ - Vor dem ersten Sprung wird jetzt geprüft, ob genügend Tritium im Carrier vorhanden ist.
+ - Falls erforderlich, wird automatisch nachgetankt.
+ - Der erste Sprung startet erst nach erfolgreicher Tankprüfung.
+
+Verbesserungen
+Konsistenter Ablauf zwischen erstem und allen folgenden Sprüngen.
+Immer aktueller Routenstatus während der Abkühlphase.
+Höhere Sicherheit vor dem Start einer langen Carrier-Route.
+
 ### Version 1.5
 - Vision Wizard
 - OCR
@@ -91,6 +106,8 @@ CTSVision trifft keine unsicheren Entscheidungen.
 - Workspace-Schutz
 
 ![CTSVision Banner](docs/images/Haupt.png)
+
+## Roadmap
 
 ### Version 2.0
 - Mehrsprachigkeit

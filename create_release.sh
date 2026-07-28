@@ -2,7 +2,7 @@
 
 set -e
 
-VERSION="1.5.5"
+VERSION="1.6"
 RELEASE="CTSVision_v${VERSION}"
 RELEASE_DIR="release/${RELEASE}"
 ARCHIVE="release/${RELEASE}.zip"
