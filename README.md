@@ -63,4 +63,3 @@ As always, CTSVision acts as a computer vision assistant for Fleet Carrier navig
 
 GNU GPL v3.0
 
-Developed by **CMDR Faber38**

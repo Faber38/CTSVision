@@ -128,4 +128,4 @@ Höhere Sicherheit vor dem Start einer langen Carrier-Route.
 
 GNU GPL v3.0
 
-Entwickelt von **CMDR Faber38**
+Entwickelt von **Faber38**
