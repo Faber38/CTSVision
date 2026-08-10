@@ -4,6 +4,18 @@
 
 [🇬🇧 English](README.md) | [🇩🇪 Deutsch](README_DE.md)
 
+## ⚠️ Important – Frontier Developments / Elite Dangerous
+
+CTSVision automates certain Fleet Carrier operations in **Elite Dangerous**. Frontier Developments' rules prohibit certain forms of gameplay automation, and Fleet Carrier automation may be considered a violation of those rules.
+
+**Using CTSVision may therefore result in warnings, restrictions, suspension, or other action against your Elite Dangerous account.**
+
+CTSVision is an independent community project and is **not affiliated with, endorsed by, or approved by Frontier Developments**.
+
+**Use this software entirely at your own risk.**
+
+Before using CTSVision, please review the current **Elite Dangerous Terms of Use, EULA, and Frontier Code of Conduct**.
+
 ## What is CTSVision?
 
 CTSVision is an open-source framework combining Computer Vision, OCR and Journal monitoring for Elite Dangerous.

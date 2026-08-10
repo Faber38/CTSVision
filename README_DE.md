@@ -4,6 +4,18 @@
 
 [🇩🇪 Deutsch](README_DE.md) | [🇬🇧 English](README.md)
 
+## ⚠️ Wichtiger Hinweis – Frontier Developments / Elite Dangerous
+
+CTSVision automatisiert bestimmte Abläufe bei der Nutzung eines Fleet Carriers in **Elite Dangerous**. Die Richtlinien von Frontier Developments untersagen bestimmte Formen der Spielautomatisierung. Fleet-Carrier-Automatisierung kann als Verstoß gegen diese Richtlinien gewertet werden.
+
+**Die Verwendung von CTSVision kann daher zu Verwarnungen, Einschränkungen, einer vorübergehenden Sperre oder anderen Maßnahmen gegen deinen Elite-Dangerous-Account führen.**
+
+CTSVision ist ein unabhängiges Community-Projekt und steht **in keiner Verbindung zu Frontier Developments, wird nicht von Frontier Developments unterstützt und ist nicht von Frontier Developments genehmigt**.
+
+**Die Verwendung dieser Software erfolgt vollständig auf eigenes Risiko.**
+
+Bitte informiere dich vor der Verwendung von CTSVision über die aktuellen **Elite Dangerous Terms of Use, die EULA und den Frontier Code of Conduct**.
+
 ## Was ist CTSVision?
 
 CTSVision ist ein Open-Source-Projekt zur Analyse der Benutzeroberfläche von **Elite Dangerous**.
