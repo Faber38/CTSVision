@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import threading
 import time
+import subprocess
 from datetime import datetime
 from pathlib import Path
 
@@ -778,6 +779,12 @@ class AutomationWindow(QMainWindow):
             self._update_scheduled_start_preview
         )
 
+        # Elite wird nur so lange geprüft, bis es einmal erkannt wurde.
+        # Danach wird dieser Timer dauerhaft gestoppt.
+        self.elite_detection_timer = QTimer(self)
+        self.elite_detection_timer.setInterval(2000)
+        self.elite_detection_timer.timeout.connect(self._check_elite_detected_once)
+
         self.scheduled_start_datetime: datetime | None = None
         self.scheduled_start_active = False
         self.info_countdown_blink_on = False
@@ -792,6 +799,11 @@ class AutomationWindow(QMainWindow):
 
         self._build_ui()
         self._apply_theme()
+
+        # CTSVision startet auch ohne Elite. Danach wird in kurzem Abstand
+        # nur so lange geprüft, bis Elite einmal erkannt wurde.
+        self.elite_detection_timer.start()
+        QTimer.singleShot(100, self._check_elite_detected_once)
 
         journal_directory = str(
             self.settings.get(
@@ -825,6 +837,67 @@ class AutomationWindow(QMainWindow):
 
                 except RouteManagerError as exc:
                     self.log("Automatisches Laden der Route " f"fehlgeschlagen: {exc}")
+
+    def _is_elite_running(self) -> bool:
+        """
+        Prüft unter Linux, ob ein Elite-Dangerous-Prozess läuft.
+
+        Diese Prüfung beeinflusst den Start von CTSVision nicht.
+        Sie dient ausschließlich zur einmaligen Statusanzeige in der GUI.
+        """
+
+        try:
+            result = subprocess.run(
+                ["pgrep", "-af", "EliteDangerous"],
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=2.0,
+            )
+        except Exception:
+            return False
+
+        output = result.stdout.lower()
+
+        return (
+            "elitedangerous64.exe" in output
+            or "elitedangerous.exe" in output
+        )
+
+    @Slot()
+    def _check_elite_detected_once(self) -> None:
+        """
+        Prüft, ob Elite Dangerous läuft.
+
+        Sobald Elite einmal erkannt wurde, wird die Anzeige auf 'bereit'
+        gesetzt und der Prüftimer dauerhaft gestoppt.
+        """
+
+        if not self._is_elite_running():
+            return
+
+        self.elite_detection_timer.stop()
+
+        self.elite_notice_label.setText(
+            "✓  Elite Dangerous erkannt – CTSVision ist bereit."
+        )
+        self.elite_notice_label.setObjectName("eliteReady")
+        self.elite_notice_label.setStyleSheet(
+            "QLabel {"
+            "color: #25633a;"
+            "background-color: #e7f7ec;"
+            "border: 1px solid #8fc59f;"
+            "border-radius: 7px;"
+            "padding: 8px 12px;"
+            "font-weight: 700;"
+            "font-size: 9.5pt;"
+            "}"
+        )
+
+        self.log(
+            "Elite Dangerous wurde erkannt. "
+            "Die weitere Elite-Erkennung wurde beendet."
+        )
 
     def _build_ui(self) -> None:
 
@@ -865,6 +938,26 @@ class AutomationWindow(QMainWindow):
 
         header_layout.addWidget(self.version_label)
         layout.addLayout(header_layout)
+
+        # --------------------------------------------------
+        # Elite-Dangerous-Hinweis
+        # --------------------------------------------------
+        #
+        # CTSVision startet bewusst unabhängig davon, ob Elite Dangerous
+        # bereits läuft. Es findet hier KEINE Fenster- oder Prozessprüfung
+        # statt. Der Hinweis informiert lediglich darüber, dass Elite vor
+        # dem Start spielsteuernder Funktionen geöffnet sein muss.
+        self.elite_notice_label = QLabel(
+            "⚠  Elite Dangerous wurde noch nicht erkannt. "
+            "Bitte Elite vor Automatik oder Tankprüfung starten."
+        )
+        self.elite_notice_label.setObjectName("eliteNotice")
+        self.elite_notice_label.setWordWrap(True)
+        self.elite_notice_label.setAlignment(
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
+        )
+        self.elite_notice_label.setMinimumHeight(38)
+        layout.addWidget(self.elite_notice_label)
 
         # Oberer Bereich: Inhalte links, Assistenten rechts
         top_layout = QHBoxLayout()
@@ -1289,6 +1382,16 @@ class AutomationWindow(QMainWindow):
                 color: #315f86;
                 font-weight: 700;
                 line-height: 1.2;
+            }
+
+            QLabel#eliteNotice {
+                color: #7a4b00;
+                background-color: #fff4cf;
+                border: 1px solid #e0b64b;
+                border-radius: 7px;
+                padding: 8px 12px;
+                font-weight: 700;
+                font-size: 9.5pt;
             }
 
             QGroupBox {

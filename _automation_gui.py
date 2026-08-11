@@ -141,18 +141,22 @@ class AutomationWorker(QObject):
     log_message = Signal(str)
     tank_status_changed = Signal(str)
     completed = Signal(str)
+    route_progress_updated = Signal(str)
     failed = Signal(str, str, str)
     finished = Signal()
 
     def __init__(
         self,
         route_manager: RouteManager,
+        *,
+        check_tank_before_jump: bool = False,
     ) -> None:
         super().__init__()
 
         self.settings = load_settings()
 
         self.route_manager = route_manager
+        self.check_tank_before_jump = check_tank_before_jump
         self.stop_requested = False
         self.carrier_jump_event = threading.Event()
 
@@ -258,6 +262,7 @@ class AutomationWorker(QObject):
         """
 
         vision: Vision | None = None
+        tank_result: dict[str, object] | None = None
 
         try:
             current_jump = self.route_manager.get_current_jump()
@@ -276,6 +281,57 @@ class AutomationWorker(QObject):
 
             if self._check_stop():
                 return
+
+            auto_refuel_enabled = bool(
+                self.settings.get(
+                    "auto_refuel_enabled",
+                    True,
+                )
+            )
+
+            if self.check_tank_before_jump:
+                if auto_refuel_enabled:
+                    self.log_message.emit(
+                        "Erster Routenstart: Der Carrier-Tank wird vor dem "
+                        "ersten Sprung geprüft."
+                    )
+
+                    tank_vision = Vision()
+
+                    tank_navigator = Navigator(
+                        vision=tank_vision,
+                        press_key=press_key,
+                    )
+
+                    tank_menu_controller = MenuController(
+                        vision=tank_vision,
+                        navigator=tank_navigator,
+                        press_key=press_key,
+                    )
+
+                    initial_tank_controller = TankController(
+                        menu_controller=tank_menu_controller,
+                        navigator=tank_navigator,
+                        press_key=press_key,
+                        log_message=self.log_message.emit,
+                        status_changed=lambda status: self.tank_status_changed.emit(
+                            status.value
+                        ),
+                    )
+
+                    initial_tank_controller.run()
+
+                    self.log_message.emit(
+                        "Tankprüfung vor dem ersten Sprung wurde erfolgreich beendet."
+                    )
+
+                    if self._check_stop():
+                        return
+                else:
+                    self.log_message.emit(
+                        "Die Tankprüfung vor dem ersten Sprung wird übersprungen, "
+                        "weil das automatische Betanken deaktiviert ist."
+                    )
 
             vision = Vision()
 
@@ -540,14 +596,17 @@ class AutomationWorker(QObject):
 
             self.log_message.emit("CarrierJump wurde vom Journal erkannt.")
 
-            cooldown_seconds = 240
+            # Der soeben ausgeführte Sprung wird direkt nach dem bestätigten
+            # CarrierJump als erledigt gespeichert. Dadurch zeigen Hauptfenster
+            # und Routen-Info bereits während der Abkühlzeit das nächste Ziel an.
+            self.route_manager.mark_current_completed()
 
-            auto_refuel_enabled = bool(
-                self.settings.get(
-                    "auto_refuel_enabled",
-                    True,
-                )
+            self.log_message.emit(
+                f"Ziel direkt nach dem Sprung als erledigt markiert: {system_name}"
             )
+            self.route_progress_updated.emit(system_name)
+
+            cooldown_seconds = 240
 
             tank_finished_event: threading.Event | None = None
             tank_result: dict[str, object] | None = None
@@ -661,10 +720,6 @@ class AutomationWorker(QObject):
                 self.log_message.emit(
                     "Abkühlzeit beendet. " "Der nächste Sprung ist jetzt freigegeben."
                 )
-
-            self.route_manager.mark_current_completed()
-
-            self.log_message.emit(f"Ziel als erledigt markiert: " f"{system_name}")
 
             self.completed.emit(system_name)
 
@@ -803,7 +858,7 @@ class AutomationWindow(QMainWindow):
         header_layout.addLayout(title_block)
         header_layout.addStretch()
 
-        self.version_label = QLabel("Version 1.5.5\nStable")
+        self.version_label = QLabel("Version 1.6\nStable")
         self.version_label.setObjectName("versionBadge")
         self.version_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.version_label.setMinimumWidth(110)
@@ -956,9 +1011,10 @@ class AutomationWindow(QMainWindow):
         self.auto_refuel_checkbox = QCheckBox("Carrier automatisch betanken")
         self.auto_refuel_checkbox.setObjectName("autoRefuelCheck")
         self.auto_refuel_checkbox.setToolTip(
-            "Ist diese Option aktiviert, wird die Tankroutine nach einem Sprung "
-            "parallel zur vierminütigen Abkühlzeit ausgeführt. "
-            "Ein neuer Sprung startet erst, wenn beide Vorgänge beendet sind."
+            "Ist diese Option aktiviert, wird der Tank bereits vor dem ersten "
+            "Routensprung geprüft. Nach jedem Sprung läuft die Tankroutine "
+            "parallel zur vierminütigen Abkühlzeit. Ein neuer Sprung startet "
+            "erst, wenn beide Vorgänge beendet sind."
         )
 
         self.refuel_threshold_spinbox = QSpinBox()
@@ -2481,7 +2537,11 @@ class AutomationWindow(QMainWindow):
 
         self._start_automation_now()
 
-    def _start_automation_now(self) -> None:
+    def _start_automation_now(
+        self,
+        *,
+        initial_start: bool = True,
+    ) -> None:
         """Startet den bestehenden Automatik-Worker unmittelbar."""
 
         if self.automation_thread is not None:
@@ -2504,11 +2564,15 @@ class AutomationWindow(QMainWindow):
         self._set_automation_running(True)
 
         thread = QThread(self)
-        worker = AutomationWorker(self.route_manager)
+        worker = AutomationWorker(
+            self.route_manager,
+            check_tank_before_jump=initial_start,
+        )
         worker.moveToThread(thread)
         thread.started.connect(worker.run)
         worker.log_message.connect(self.log)
         worker.tank_status_changed.connect(self.set_tank_status)
+        worker.route_progress_updated.connect(self.route_progress_updated)
         worker.completed.connect(self.automation_completed)
         worker.failed.connect(self.automation_failed)
         worker.finished.connect(thread.quit)
@@ -2541,6 +2605,26 @@ class AutomationWindow(QMainWindow):
         self.automation_worker.request_stop()
 
         self.stop_button.setEnabled(False)
+
+    # --------------------------------------------------
+
+    @Slot(str)
+    def route_progress_updated(
+        self,
+        system_name: str,
+    ) -> None:
+        """
+        Aktualisiert die Routenanzeige unmittelbar nach dem CarrierJump.
+
+        Die vierminütige Abkühlzeit und eine eventuell laufende Tankroutine
+        werden danach weiterhin vollständig abgewartet.
+        """
+
+        self.refresh_route_display()
+        self.log(
+            "Routenanzeige wurde direkt nach dem Sprung aktualisiert. "
+            f"Abgeschlossenes Ziel: {system_name}"
+        )
 
     # --------------------------------------------------
 
@@ -2615,7 +2699,7 @@ class AutomationWindow(QMainWindow):
 
             # Folgesprünge dürfen nicht erneut über die einmalige
             # Startzeitprüfung laufen.
-            self._start_automation_now()
+            self._start_automation_now(initial_start=False)
             return
 
         self._set_automation_running(False)
