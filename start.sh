@@ -1,13 +1,12 @@
 #!/bin/bash
 
-cd "$(dirname "$0")"
+cd "$(dirname "$0")" || exit 1
 
 echo "========================================="
-echo "       CTSVision 1.5"
+echo "       CTSVision 1.6"
 echo "========================================="
 echo
 
-# Prüfen ob installiert
 if [ ! -d "venv" ]; then
     echo "CTSVision wurde noch nicht installiert."
     echo
@@ -20,23 +19,9 @@ if [ ! -d "venv" ]; then
     exit 1
 fi
 
-# Virtuelle Umgebung aktivieren
 source venv/bin/activate
 
-# Elite Dangerous prüfen
-if ! pgrep -f "EliteDangerous64.exe" >/dev/null ; then
-    echo "Elite Dangerous wurde nicht gefunden."
-    echo
-    echo "Bitte zuerst Elite Dangerous starten"
-    echo "und danach CTSVision erneut starten."
-    echo
-    exit 1
-fi
-
-echo "Elite Dangerous gefunden."
 echo "Starte CTSVision..."
 echo
 
-python automation.py
-
-deactivate
+python automation_gui.py
