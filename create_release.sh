@@ -19,6 +19,13 @@ echo
 rm -rf release
 mkdir -p "${RELEASE_DIR}"
 
+# Sicherheitsprüfung:
+# Lokale Backups gehören niemals in ein Release-Paket.
+if [ -d "${RELEASE_DIR}/backup" ]; then
+    echo "Entferne versehentlich vorhandenes Backup aus dem Release..."
+    rm -rf "${RELEASE_DIR}/backup"
+fi
+
 echo "Kopiere Python-Dateien..."
 find . -maxdepth 1 -name "*.py" -exec cp {} "${RELEASE_DIR}/" \;
 
@@ -72,6 +79,9 @@ echo "Entferne Entwicklungsreste..."
 find "${RELEASE_DIR}" -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
 find "${RELEASE_DIR}" -name "*.pyc" -delete
 find "${RELEASE_DIR}" -name "*.pyo" -delete
+
+# Letzte Sicherheitsprüfung vor dem Packen
+find "${RELEASE_DIR}" -type d -name "backup" -prune -exec rm -rf {} + 2>/dev/null || true
 
 echo "Erstelle ZIP..."
 (
