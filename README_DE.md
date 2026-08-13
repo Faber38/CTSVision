@@ -94,12 +94,19 @@ CTSVision trifft keine unsicheren Entscheidungen.
 
 **Robustheit vor Geschwindigkeit.**
 
-### Version 1.7
+### Version 1.7.1
 ✨ Neu
- - ED nach erfolgreichem Beenden der Sprungroute ausschalten.
-   Ausdrücklich nur wenn die Automation erfolgreich beendet wurde.
- - Wenn gewünscht kann danach der PC aus geschaltet werden.
-   Dieser schaltet sich nur aus wenn das beenden von ED erfolgreich war.
+- Elite Dangerous kann nach erfolgreichem Abschluss der Sprungroute automatisch beendet werden.
+  Dies erfolgt ausdrücklich nur, wenn die Automation erfolgreich abgeschlossen wurde.
+- Wenn gewünscht, kann anschließend auch der PC automatisch ausgeschaltet werden.
+  Der PC wird nur heruntergefahren, wenn Elite Dangerous zuvor erfolgreich beendet wurde.
+- Automatische Update-Prüfung hinzugefügt.
+  CTSVision prüft beim Start, ob eine neue Version auf GitHub verfügbar ist.
+- Ist eine neue Version verfügbar, wird dies direkt in der Versionsanzeige angezeigt.
+- Updates können direkt aus CTSVision heraus installiert werden.
+  Vor der Installation wird automatisch ein Backup der bestehenden Installation erstellt.
+- Persönliche Daten wie Konfiguration, Referenzbilder, Routen und Laufzeitdaten bleiben beim Update erhalten.
+- Nach erfolgreicher Installation wird CTSVision automatisch neu gestartet.
 
 
 ### Version 1.6
