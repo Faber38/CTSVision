@@ -768,6 +768,7 @@ class AutomationWindow(QMainWindow):
 
         self.start_next_jump = False
         self.shutdown_elite_after_finish = False
+        self.shutdown_pc_after_finish = False
         self.settings = load_settings()
 
         self.scheduled_start_timer = QTimer(self)
@@ -860,10 +861,7 @@ class AutomationWindow(QMainWindow):
 
         output = result.stdout.lower()
 
-        return (
-            "elitedangerous64.exe" in output
-            or "elitedangerous.exe" in output
-        )
+        return "elitedangerous64.exe" in output or "elitedangerous.exe" in output
 
     @Slot()
     def _check_elite_detected_once(self) -> None:
@@ -932,7 +930,7 @@ class AutomationWindow(QMainWindow):
         header_layout.addLayout(title_block)
         header_layout.addStretch()
 
-        self.version_label = QLabel("Version 1.6\nStable")
+        self.version_label = QLabel("Version 1.7\nStable")
         self.version_label.setObjectName("versionBadge")
         self.version_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.version_label.setMinimumWidth(110)
@@ -1222,7 +1220,7 @@ class AutomationWindow(QMainWindow):
         finish_box.setObjectName("finishBox")
         content_layout.addWidget(finish_box)
 
-        finish_layout = QVBoxLayout(finish_box)
+        finish_layout = QHBoxLayout(finish_box)
 
         self.exit_elite_checkbox = QCheckBox(
             "Elite Dangerous nach erfolgreichem Routenabschluss beenden"
@@ -1234,13 +1232,24 @@ class AutomationWindow(QMainWindow):
             "Bei Fehler, Abbruch oder manuellem Stop bleibt Elite geöffnet."
         )
 
-        exit_elite_enabled = bool(
-            self.settings.get("exit_elite_after_route", False)
-        )
+        exit_elite_enabled = bool(self.settings.get("exit_elite_after_route", False))
         self.exit_elite_checkbox.setChecked(exit_elite_enabled)
         self.exit_elite_checkbox.toggled.connect(self._save_finish_settings)
 
+        self.shutdown_pc_checkbox = QCheckBox("PC ausschalten")
+        self.shutdown_pc_checkbox.setObjectName("shutdownPcCheck")
+        self.shutdown_pc_checkbox.setToolTip(
+            "Fährt den PC nur nach vollständig erfolgreichem Routenabschluss herunter. "
+            "Bei Fehler, Abbruch oder manuellem Stop bleibt der PC eingeschaltet."
+        )
+        self.shutdown_pc_checkbox.setChecked(
+            bool(self.settings.get("shutdown_pc_after_route", False))
+        )
+        self.shutdown_pc_checkbox.toggled.connect(self._save_finish_settings)
+
         finish_layout.addWidget(self.exit_elite_checkbox)
+        finish_layout.addStretch()
+        finish_layout.addWidget(self.shutdown_pc_checkbox)
 
         # --------------------------------------------------
         # Assistenten und Prüfungen rechts oben
@@ -1539,7 +1548,7 @@ class AutomationWindow(QMainWindow):
                 color: #9a5a24;
             }
 
-            QCheckBox#exitEliteCheck {
+            QCheckBox#exitEliteCheck, QCheckBox#shutdownPcCheck {
                 font-weight: 600;
                 color: #7c4a1f;
                 padding: 4px 2px;
@@ -1841,9 +1850,8 @@ class AutomationWindow(QMainWindow):
     def _save_finish_settings(self) -> None:
         """Speichert die Optionen für den erfolgreichen Routenabschluss."""
 
-        self.settings["exit_elite_after_route"] = (
-            self.exit_elite_checkbox.isChecked()
-        )
+        self.settings["exit_elite_after_route"] = self.exit_elite_checkbox.isChecked()
+        self.settings["shutdown_pc_after_route"] = self.shutdown_pc_checkbox.isChecked()
         save_settings(self.settings)
 
     def _get_route_dialog_directory(self) -> str:
@@ -2338,6 +2346,7 @@ class AutomationWindow(QMainWindow):
 
         self.auto_refuel_checkbox.setEnabled(not running)
         self.exit_elite_checkbox.setEnabled(not running)
+        self.shutdown_pc_checkbox.setEnabled(not running)
 
         tank_controls_enabled = not running and self.auto_refuel_checkbox.isChecked()
         self.refuel_threshold_spinbox.setEnabled(tank_controls_enabled)
@@ -2630,6 +2639,7 @@ class AutomationWindow(QMainWindow):
         self.tank_test_button.setEnabled(not waiting)
         self.auto_refuel_checkbox.setEnabled(not waiting)
         self.exit_elite_checkbox.setEnabled(not waiting)
+        self.shutdown_pc_checkbox.setEnabled(not waiting)
         self.scheduled_start_checkbox.setEnabled(not waiting)
         self.scheduled_start_edit.setEnabled(
             not waiting and self.scheduled_start_checkbox.isChecked()
@@ -2759,6 +2769,7 @@ class AutomationWindow(QMainWindow):
             return
 
         self.shutdown_elite_after_finish = False
+        self.shutdown_pc_after_finish = False
 
         self.log("Stop wird angefordert...")
 
@@ -2805,6 +2816,7 @@ class AutomationWindow(QMainWindow):
         if self.route_manager is not None and self.route_manager.is_completed:
             self.start_next_jump = False
             self.shutdown_elite_after_finish = self.exit_elite_checkbox.isChecked()
+            self.shutdown_pc_after_finish = self.shutdown_pc_checkbox.isChecked()
 
             self.log("Route vollständig abgeschlossen.")
 
@@ -2838,6 +2850,7 @@ class AutomationWindow(QMainWindow):
         """
 
         self.shutdown_elite_after_finish = False
+        self.shutdown_pc_after_finish = False
 
         self.log("Fehler im Automatik-Test: " f"{error_message}")
 
@@ -2897,6 +2910,15 @@ class AutomationWindow(QMainWindow):
 
         self.log("Beenden-Befehl wurde an Elite Dangerous gesendet.")
 
+    def _shutdown_pc(self) -> None:
+        """Fährt den Linux-PC nach erfolgreichem Routenabschluss herunter."""
+        self.log("PC wird jetzt heruntergefahren...")
+        subprocess.Popen(
+            ["systemctl", "poweroff"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
     @Slot()
     def automation_thread_finished(self) -> None:
         """
@@ -2929,6 +2951,59 @@ class AutomationWindow(QMainWindow):
                     f"automatisch beendet werden: {exc}"
                 )
 
+        if self.shutdown_pc_after_finish:
+            self.shutdown_pc_after_finish = False
+
+            if self.exit_elite_checkbox.isChecked():
+                self.log(
+                    "PC-Ausschalten wartet, bis Elite Dangerous vollständig beendet ist..."
+                )
+
+                elite_closed = False
+
+                for remaining_seconds in range(60, 0, -2):
+                    QApplication.processEvents()
+
+                    if not self._is_elite_running():
+                        elite_closed = True
+                        self.log(
+                            "Elite Dangerous wird nicht mehr erkannt. "
+                            "PC darf jetzt ausgeschaltet werden."
+                        )
+                        break
+
+                    if remaining_seconds % 10 == 0:
+                        self.log(
+                            f"Elite Dangerous läuft noch. "
+                            f"Warte weiter ({remaining_seconds} s)..."
+                        )
+
+                    time.sleep(2.0)
+
+                if not elite_closed:
+                    self.log(
+                        "Elite Dangerous wird nach 60 Sekunden weiterhin erkannt. "
+                        "Der PC wird aus Sicherheitsgründen NICHT ausgeschaltet."
+                    )
+                    self._set_automation_running(False)
+                    return
+
+            else:
+                # Auch wenn Elite nicht automatisch beendet werden soll, wird
+                # vor dem Herunterfahren geprüft, ob es wirklich nicht mehr läuft.
+                if self._is_elite_running():
+                    self.log(
+                        "Elite Dangerous wird noch erkannt. "
+                        "Der PC wird aus Sicherheitsgründen NICHT ausgeschaltet."
+                    )
+                    self._set_automation_running(False)
+                    return
+
+            try:
+                self._shutdown_pc()
+            except Exception as exc:
+                self.log(f"Der PC konnte nicht automatisch ausgeschaltet werden: {exc}")
+
         self._set_automation_running(False)
 
     # --------------------------------------------------
@@ -2957,6 +3032,7 @@ class AutomationWindow(QMainWindow):
 
         self.auto_refuel_checkbox.setEnabled(not running)
         self.exit_elite_checkbox.setEnabled(not running)
+        self.shutdown_pc_checkbox.setEnabled(not running)
         self.scheduled_start_checkbox.setEnabled(not running)
         self.scheduled_start_edit.setEnabled(
             not running and self.scheduled_start_checkbox.isChecked()
