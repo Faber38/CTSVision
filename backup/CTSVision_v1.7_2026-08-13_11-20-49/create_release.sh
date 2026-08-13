@@ -22,24 +22,6 @@ mkdir -p "${RELEASE_DIR}"
 echo "Kopiere Python-Dateien..."
 find . -maxdepth 1 -name "*.py" -exec cp {} "${RELEASE_DIR}/" \;
 
-echo "Setze Versionsnummer im Release..."
-if [ ! -f "${RELEASE_DIR}/update.py" ]; then
-    echo "Fehler: update.py wurde im Release-Verzeichnis nicht gefunden."
-    exit 1
-fi
-
-sed -i -E \
-    "s/^CURRENT_VERSION[[:space:]]*=[[:space:]]*\"[^\"]*\"/CURRENT_VERSION = \"${VERSION}\"/" \
-    "${RELEASE_DIR}/update.py"
-
-if ! grep -q "^CURRENT_VERSION = \"${VERSION}\"$" "${RELEASE_DIR}/update.py"; then
-    echo "Fehler: Versionsnummer in update.py konnte nicht gesetzt werden."
-    exit 1
-fi
-
-echo "update.py im Release steht jetzt auf Version ${VERSION}."
-echo
-
 echo "Kopiere Shell-Skripte..."
 cp install.sh "${RELEASE_DIR}/"
 cp start.sh "${RELEASE_DIR}/"
