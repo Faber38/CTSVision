@@ -94,8 +94,15 @@ CTSVision trifft keine unsicheren Entscheidungen.
 
 **Robustheit vor Geschwindigkeit.**
 
-### Version 1.6
+### Version 1.7
 ✨ Neu
+ - ED nach erfolgreichem Beenden der Sprungroute ausschalten.
+   Ausdrücklich nur wenn die Automation erfolgreich beendet wurde.
+ - Wenn gewünscht kann danach der PC aus geschaltet werden.
+   Dieser schaltet sich nur aus wenn das beenden von ED erfolgreich war.
+
+
+### Version 1.6
  - Route wird direkt nach dem CarrierJump aktualisiert.
  - Das aktuelle Ziel wird unmittelbar als erledigt markiert.
  - Das nächste Sprungziel wird sofort in der GUI angezeigt.

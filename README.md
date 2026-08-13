@@ -33,6 +33,12 @@ CTSVision is an open-source framework combining Computer Vision, OCR and Journal
 ## Philosophy
 Robustness first.
 
+### Version 1.7
+✨ New
+- Elite Dangerous can be closed automatically after the jump route has been completed successfully.
+  This will only happen if the automation finishes successfully.
+- If desired, the PC can be shut down afterwards.
+  The PC will only shut down after Elite Dangerous has been closed successfully.
 
 ## 🚀 CTSVision 1.6
 

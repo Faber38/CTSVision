@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import threading
 import time
+import subprocess
 from datetime import datetime
 from pathlib import Path
 
@@ -766,6 +767,7 @@ class AutomationWindow(QMainWindow):
         self.tank_test_worker: TankTestWorker | None = None
 
         self.start_next_jump = False
+        self.shutdown_elite_after_finish = False
         self.settings = load_settings()
 
         self.scheduled_start_timer = QTimer(self)
@@ -777,6 +779,12 @@ class AutomationWindow(QMainWindow):
         self.scheduled_preview_timer.timeout.connect(
             self._update_scheduled_start_preview
         )
+
+        # Elite wird nur so lange geprüft, bis es einmal erkannt wurde.
+        # Danach wird dieser Timer dauerhaft gestoppt.
+        self.elite_detection_timer = QTimer(self)
+        self.elite_detection_timer.setInterval(2000)
+        self.elite_detection_timer.timeout.connect(self._check_elite_detected_once)
 
         self.scheduled_start_datetime: datetime | None = None
         self.scheduled_start_active = False
@@ -792,6 +800,11 @@ class AutomationWindow(QMainWindow):
 
         self._build_ui()
         self._apply_theme()
+
+        # CTSVision startet auch ohne Elite. Danach wird in kurzem Abstand
+        # nur so lange geprüft, bis Elite einmal erkannt wurde.
+        self.elite_detection_timer.start()
+        QTimer.singleShot(100, self._check_elite_detected_once)
 
         journal_directory = str(
             self.settings.get(
@@ -825,6 +838,67 @@ class AutomationWindow(QMainWindow):
 
                 except RouteManagerError as exc:
                     self.log("Automatisches Laden der Route " f"fehlgeschlagen: {exc}")
+
+    def _is_elite_running(self) -> bool:
+        """
+        Prüft unter Linux, ob ein Elite-Dangerous-Prozess läuft.
+
+        Diese Prüfung beeinflusst den Start von CTSVision nicht.
+        Sie dient ausschließlich zur einmaligen Statusanzeige in der GUI.
+        """
+
+        try:
+            result = subprocess.run(
+                ["pgrep", "-af", "EliteDangerous"],
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=2.0,
+            )
+        except Exception:
+            return False
+
+        output = result.stdout.lower()
+
+        return (
+            "elitedangerous64.exe" in output
+            or "elitedangerous.exe" in output
+        )
+
+    @Slot()
+    def _check_elite_detected_once(self) -> None:
+        """
+        Prüft, ob Elite Dangerous läuft.
+
+        Sobald Elite einmal erkannt wurde, wird die Anzeige auf 'bereit'
+        gesetzt und der Prüftimer dauerhaft gestoppt.
+        """
+
+        if not self._is_elite_running():
+            return
+
+        self.elite_detection_timer.stop()
+
+        self.elite_notice_label.setText(
+            "✓  Elite Dangerous erkannt – CTSVision ist bereit."
+        )
+        self.elite_notice_label.setObjectName("eliteReady")
+        self.elite_notice_label.setStyleSheet(
+            "QLabel {"
+            "color: #25633a;"
+            "background-color: #e7f7ec;"
+            "border: 1px solid #8fc59f;"
+            "border-radius: 7px;"
+            "padding: 8px 12px;"
+            "font-weight: 700;"
+            "font-size: 9.5pt;"
+            "}"
+        )
+
+        self.log(
+            "Elite Dangerous wurde erkannt. "
+            "Die weitere Elite-Erkennung wurde beendet."
+        )
 
     def _build_ui(self) -> None:
 
@@ -865,6 +939,26 @@ class AutomationWindow(QMainWindow):
 
         header_layout.addWidget(self.version_label)
         layout.addLayout(header_layout)
+
+        # --------------------------------------------------
+        # Elite-Dangerous-Hinweis
+        # --------------------------------------------------
+        #
+        # CTSVision startet bewusst unabhängig davon, ob Elite Dangerous
+        # bereits läuft. Es findet hier KEINE Fenster- oder Prozessprüfung
+        # statt. Der Hinweis informiert lediglich darüber, dass Elite vor
+        # dem Start spielsteuernder Funktionen geöffnet sein muss.
+        self.elite_notice_label = QLabel(
+            "⚠  Elite Dangerous wurde noch nicht erkannt. "
+            "Bitte Elite vor Automatik oder Tankprüfung starten."
+        )
+        self.elite_notice_label.setObjectName("eliteNotice")
+        self.elite_notice_label.setWordWrap(True)
+        self.elite_notice_label.setAlignment(
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
+        )
+        self.elite_notice_label.setMinimumHeight(38)
+        layout.addWidget(self.elite_notice_label)
 
         # Oberer Bereich: Inhalte links, Assistenten rechts
         top_layout = QHBoxLayout()
@@ -1121,6 +1215,34 @@ class AutomationWindow(QMainWindow):
         tank_layout.addWidget(position_card, 0, 2, 2, 1)
 
         # --------------------------------------------------
+        # Abschlussoptionen
+        # --------------------------------------------------
+
+        finish_box = QGroupBox("Nach Routenabschluss")
+        finish_box.setObjectName("finishBox")
+        content_layout.addWidget(finish_box)
+
+        finish_layout = QVBoxLayout(finish_box)
+
+        self.exit_elite_checkbox = QCheckBox(
+            "Elite Dangerous nach erfolgreichem Routenabschluss beenden"
+        )
+        self.exit_elite_checkbox.setObjectName("exitEliteCheck")
+        self.exit_elite_checkbox.setToolTip(
+            "Ist diese Option aktiviert, wird Elite Dangerous erst nach dem "
+            "vollständig erfolgreichen Abschluss der Route über das Spielmenü beendet. "
+            "Bei Fehler, Abbruch oder manuellem Stop bleibt Elite geöffnet."
+        )
+
+        exit_elite_enabled = bool(
+            self.settings.get("exit_elite_after_route", False)
+        )
+        self.exit_elite_checkbox.setChecked(exit_elite_enabled)
+        self.exit_elite_checkbox.toggled.connect(self._save_finish_settings)
+
+        finish_layout.addWidget(self.exit_elite_checkbox)
+
+        # --------------------------------------------------
         # Assistenten und Prüfungen rechts oben
         # --------------------------------------------------
 
@@ -1291,6 +1413,16 @@ class AutomationWindow(QMainWindow):
                 line-height: 1.2;
             }
 
+            QLabel#eliteNotice {
+                color: #7a4b00;
+                background-color: #fff4cf;
+                border: 1px solid #e0b64b;
+                border-radius: 7px;
+                padding: 8px 12px;
+                font-weight: 700;
+                font-size: 9.5pt;
+            }
+
             QGroupBox {
                 border: 1px solid #c8d3dd;
                 border-radius: 8px;
@@ -1396,6 +1528,21 @@ class AutomationWindow(QMainWindow):
                 color: #234a28;
                 background-color: #fbfefb;
                 border-color: #a9c9a5;
+            }
+
+            QGroupBox#finishBox {
+                background-color: #fff8f3;
+                border-color: #e4c2a3;
+            }
+
+            QGroupBox#finishBox::title {
+                color: #9a5a24;
+            }
+
+            QCheckBox#exitEliteCheck {
+                font-weight: 600;
+                color: #7c4a1f;
+                padding: 4px 2px;
             }
 
             QGroupBox#assistantBox {
@@ -1689,6 +1836,15 @@ class AutomationWindow(QMainWindow):
         save_settings(self.settings)
 
     # --------------------------------------------------
+
+    @Slot()
+    def _save_finish_settings(self) -> None:
+        """Speichert die Optionen für den erfolgreichen Routenabschluss."""
+
+        self.settings["exit_elite_after_route"] = (
+            self.exit_elite_checkbox.isChecked()
+        )
+        save_settings(self.settings)
 
     def _get_route_dialog_directory(self) -> str:
         """
@@ -2181,6 +2337,7 @@ class AutomationWindow(QMainWindow):
         self.tank_wizard_button.setEnabled(not running)
 
         self.auto_refuel_checkbox.setEnabled(not running)
+        self.exit_elite_checkbox.setEnabled(not running)
 
         tank_controls_enabled = not running and self.auto_refuel_checkbox.isChecked()
         self.refuel_threshold_spinbox.setEnabled(tank_controls_enabled)
@@ -2472,6 +2629,7 @@ class AutomationWindow(QMainWindow):
         self.tank_wizard_button.setEnabled(not waiting)
         self.tank_test_button.setEnabled(not waiting)
         self.auto_refuel_checkbox.setEnabled(not waiting)
+        self.exit_elite_checkbox.setEnabled(not waiting)
         self.scheduled_start_checkbox.setEnabled(not waiting)
         self.scheduled_start_edit.setEnabled(
             not waiting and self.scheduled_start_checkbox.isChecked()
@@ -2600,6 +2758,8 @@ class AutomationWindow(QMainWindow):
             self.log("Die Automatik läuft derzeit nicht.")
             return
 
+        self.shutdown_elite_after_finish = False
+
         self.log("Stop wird angefordert...")
 
         self.automation_worker.request_stop()
@@ -2644,8 +2804,15 @@ class AutomationWindow(QMainWindow):
 
         if self.route_manager is not None and self.route_manager.is_completed:
             self.start_next_jump = False
+            self.shutdown_elite_after_finish = self.exit_elite_checkbox.isChecked()
 
             self.log("Route vollständig abgeschlossen.")
+
+            if self.shutdown_elite_after_finish:
+                self.log(
+                    "Elite Dangerous wird nach dem Aufräumen des Automatik-Workers "
+                    "über das Spielmenü beendet."
+                )
 
             return
 
@@ -2670,6 +2837,8 @@ class AutomationWindow(QMainWindow):
         Zeigt einen Fehler aus dem Worker an.
         """
 
+        self.shutdown_elite_after_finish = False
+
         self.log("Fehler im Automatik-Test: " f"{error_message}")
 
         self._show_error_with_compare(
@@ -2680,6 +2849,53 @@ class AutomationWindow(QMainWindow):
         )
 
     # --------------------------------------------------
+
+    def _shutdown_elite_via_menu(self) -> None:
+        """
+        Beendet Elite Dangerous nach erfolgreich abgeschlossener Route
+        über den bekannten Menüweg.
+
+        Ablauf:
+            - Menü 1 sicher erreichen
+            - ESC
+            - 5x S
+            - ENTER
+            - 1x D
+            - ENTER
+        """
+
+        self.log("Spielende wird vorbereitet. Menü 1 wird gesucht...")
+
+        vision = Vision()
+        navigator = Navigator(
+            vision=vision,
+            press_key=press_key,
+        )
+        controller = MenuController(
+            vision=vision,
+            navigator=navigator,
+            press_key=press_key,
+        )
+
+        controller.navigator.goto(
+            "main_menu",
+            "main_menu_block_carrierdienste",
+            max_actions=14,
+            state_timeout=4.0,
+        )
+
+        self.log("Menü 1 wurde sicher erkannt. Elite wird jetzt beendet...")
+
+        press_key("esc", hold_time=0.20, after_delay=1.50)
+
+        for _ in range(5):
+            press_key("s", hold_time=0.12, after_delay=0.20)
+
+        press_key("enter", hold_time=0.20, after_delay=1.00)
+        press_key("d", hold_time=0.20, after_delay=0.50)
+        press_key("enter", hold_time=0.20, after_delay=1.00)
+
+        self.log("Beenden-Befehl wurde an Elite Dangerous gesendet.")
 
     @Slot()
     def automation_thread_finished(self) -> None:
@@ -2701,6 +2917,17 @@ class AutomationWindow(QMainWindow):
             # Startzeitprüfung laufen.
             self._start_automation_now(initial_start=False)
             return
+
+        if self.shutdown_elite_after_finish:
+            self.shutdown_elite_after_finish = False
+
+            try:
+                self._shutdown_elite_via_menu()
+            except Exception as exc:
+                self.log(
+                    "Elite Dangerous konnte nach dem Routenabschluss nicht "
+                    f"automatisch beendet werden: {exc}"
+                )
 
         self._set_automation_running(False)
 
@@ -2729,6 +2956,7 @@ class AutomationWindow(QMainWindow):
         self.tank_test_button.setEnabled(not running)
 
         self.auto_refuel_checkbox.setEnabled(not running)
+        self.exit_elite_checkbox.setEnabled(not running)
         self.scheduled_start_checkbox.setEnabled(not running)
         self.scheduled_start_edit.setEnabled(
             not running and self.scheduled_start_checkbox.isChecked()

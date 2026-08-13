@@ -767,6 +767,8 @@ class AutomationWindow(QMainWindow):
         self.tank_test_worker: TankTestWorker | None = None
 
         self.start_next_jump = False
+        self.shutdown_elite_after_finish = False
+        self.shutdown_pc_after_finish = False
         self.settings = load_settings()
 
         self.scheduled_start_timer = QTimer(self)
@@ -859,10 +861,7 @@ class AutomationWindow(QMainWindow):
 
         output = result.stdout.lower()
 
-        return (
-            "elitedangerous64.exe" in output
-            or "elitedangerous.exe" in output
-        )
+        return "elitedangerous64.exe" in output or "elitedangerous.exe" in output
 
     @Slot()
     def _check_elite_detected_once(self) -> None:
@@ -931,7 +930,7 @@ class AutomationWindow(QMainWindow):
         header_layout.addLayout(title_block)
         header_layout.addStretch()
 
-        self.version_label = QLabel("Version 1.6\nStable")
+        self.version_label = QLabel("Version 1.7\nStable")
         self.version_label.setObjectName("versionBadge")
         self.version_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.version_label.setMinimumWidth(110)
@@ -1212,6 +1211,45 @@ class AutomationWindow(QMainWindow):
 
         tank_layout.addWidget(threshold_card, 0, 1, 2, 1)
         tank_layout.addWidget(position_card, 0, 2, 2, 1)
+
+        # --------------------------------------------------
+        # Abschlussoptionen
+        # --------------------------------------------------
+
+        finish_box = QGroupBox("Nach Routenabschluss")
+        finish_box.setObjectName("finishBox")
+        content_layout.addWidget(finish_box)
+
+        finish_layout = QHBoxLayout(finish_box)
+
+        self.exit_elite_checkbox = QCheckBox(
+            "Elite Dangerous nach erfolgreichem Routenabschluss beenden"
+        )
+        self.exit_elite_checkbox.setObjectName("exitEliteCheck")
+        self.exit_elite_checkbox.setToolTip(
+            "Ist diese Option aktiviert, wird Elite Dangerous erst nach dem "
+            "vollständig erfolgreichen Abschluss der Route über das Spielmenü beendet. "
+            "Bei Fehler, Abbruch oder manuellem Stop bleibt Elite geöffnet."
+        )
+
+        exit_elite_enabled = bool(self.settings.get("exit_elite_after_route", False))
+        self.exit_elite_checkbox.setChecked(exit_elite_enabled)
+        self.exit_elite_checkbox.toggled.connect(self._save_finish_settings)
+
+        self.shutdown_pc_checkbox = QCheckBox("PC ausschalten")
+        self.shutdown_pc_checkbox.setObjectName("shutdownPcCheck")
+        self.shutdown_pc_checkbox.setToolTip(
+            "Fährt den PC nur nach vollständig erfolgreichem Routenabschluss herunter. "
+            "Bei Fehler, Abbruch oder manuellem Stop bleibt der PC eingeschaltet."
+        )
+        self.shutdown_pc_checkbox.setChecked(
+            bool(self.settings.get("shutdown_pc_after_route", False))
+        )
+        self.shutdown_pc_checkbox.toggled.connect(self._save_finish_settings)
+
+        finish_layout.addWidget(self.exit_elite_checkbox)
+        finish_layout.addStretch()
+        finish_layout.addWidget(self.shutdown_pc_checkbox)
 
         # --------------------------------------------------
         # Assistenten und Prüfungen rechts oben
@@ -1499,6 +1537,21 @@ class AutomationWindow(QMainWindow):
                 color: #234a28;
                 background-color: #fbfefb;
                 border-color: #a9c9a5;
+            }
+
+            QGroupBox#finishBox {
+                background-color: #fff8f3;
+                border-color: #e4c2a3;
+            }
+
+            QGroupBox#finishBox::title {
+                color: #9a5a24;
+            }
+
+            QCheckBox#exitEliteCheck, QCheckBox#shutdownPcCheck {
+                font-weight: 600;
+                color: #7c4a1f;
+                padding: 4px 2px;
             }
 
             QGroupBox#assistantBox {
@@ -1792,6 +1845,14 @@ class AutomationWindow(QMainWindow):
         save_settings(self.settings)
 
     # --------------------------------------------------
+
+    @Slot()
+    def _save_finish_settings(self) -> None:
+        """Speichert die Optionen für den erfolgreichen Routenabschluss."""
+
+        self.settings["exit_elite_after_route"] = self.exit_elite_checkbox.isChecked()
+        self.settings["shutdown_pc_after_route"] = self.shutdown_pc_checkbox.isChecked()
+        save_settings(self.settings)
 
     def _get_route_dialog_directory(self) -> str:
         """
@@ -2284,6 +2345,8 @@ class AutomationWindow(QMainWindow):
         self.tank_wizard_button.setEnabled(not running)
 
         self.auto_refuel_checkbox.setEnabled(not running)
+        self.exit_elite_checkbox.setEnabled(not running)
+        self.shutdown_pc_checkbox.setEnabled(not running)
 
         tank_controls_enabled = not running and self.auto_refuel_checkbox.isChecked()
         self.refuel_threshold_spinbox.setEnabled(tank_controls_enabled)
@@ -2575,6 +2638,8 @@ class AutomationWindow(QMainWindow):
         self.tank_wizard_button.setEnabled(not waiting)
         self.tank_test_button.setEnabled(not waiting)
         self.auto_refuel_checkbox.setEnabled(not waiting)
+        self.exit_elite_checkbox.setEnabled(not waiting)
+        self.shutdown_pc_checkbox.setEnabled(not waiting)
         self.scheduled_start_checkbox.setEnabled(not waiting)
         self.scheduled_start_edit.setEnabled(
             not waiting and self.scheduled_start_checkbox.isChecked()
@@ -2703,6 +2768,9 @@ class AutomationWindow(QMainWindow):
             self.log("Die Automatik läuft derzeit nicht.")
             return
 
+        self.shutdown_elite_after_finish = False
+        self.shutdown_pc_after_finish = False
+
         self.log("Stop wird angefordert...")
 
         self.automation_worker.request_stop()
@@ -2747,8 +2815,16 @@ class AutomationWindow(QMainWindow):
 
         if self.route_manager is not None and self.route_manager.is_completed:
             self.start_next_jump = False
+            self.shutdown_elite_after_finish = self.exit_elite_checkbox.isChecked()
+            self.shutdown_pc_after_finish = self.shutdown_pc_checkbox.isChecked()
 
             self.log("Route vollständig abgeschlossen.")
+
+            if self.shutdown_elite_after_finish:
+                self.log(
+                    "Elite Dangerous wird nach dem Aufräumen des Automatik-Workers "
+                    "über das Spielmenü beendet."
+                )
 
             return
 
@@ -2773,6 +2849,9 @@ class AutomationWindow(QMainWindow):
         Zeigt einen Fehler aus dem Worker an.
         """
 
+        self.shutdown_elite_after_finish = False
+        self.shutdown_pc_after_finish = False
+
         self.log("Fehler im Automatik-Test: " f"{error_message}")
 
         self._show_error_with_compare(
@@ -2783,6 +2862,62 @@ class AutomationWindow(QMainWindow):
         )
 
     # --------------------------------------------------
+
+    def _shutdown_elite_via_menu(self) -> None:
+        """
+        Beendet Elite Dangerous nach erfolgreich abgeschlossener Route
+        über den bekannten Menüweg.
+
+        Ablauf:
+            - Menü 1 sicher erreichen
+            - ESC
+            - 5x S
+            - ENTER
+            - 1x D
+            - ENTER
+        """
+
+        self.log("Spielende wird vorbereitet. Menü 1 wird gesucht...")
+
+        vision = Vision()
+        navigator = Navigator(
+            vision=vision,
+            press_key=press_key,
+        )
+        controller = MenuController(
+            vision=vision,
+            navigator=navigator,
+            press_key=press_key,
+        )
+
+        controller.navigator.goto(
+            "main_menu",
+            "main_menu_block_carrierdienste",
+            max_actions=14,
+            state_timeout=4.0,
+        )
+
+        self.log("Menü 1 wurde sicher erkannt. Elite wird jetzt beendet...")
+
+        press_key("esc", hold_time=0.20, after_delay=1.50)
+
+        for _ in range(5):
+            press_key("s", hold_time=0.12, after_delay=0.20)
+
+        press_key("enter", hold_time=0.20, after_delay=1.00)
+        press_key("d", hold_time=0.20, after_delay=0.50)
+        press_key("enter", hold_time=0.20, after_delay=1.00)
+
+        self.log("Beenden-Befehl wurde an Elite Dangerous gesendet.")
+
+    def _shutdown_pc(self) -> None:
+        """Fährt den Linux-PC nach erfolgreichem Routenabschluss herunter."""
+        self.log("PC wird jetzt heruntergefahren...")
+        subprocess.Popen(
+            ["systemctl", "poweroff"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
 
     @Slot()
     def automation_thread_finished(self) -> None:
@@ -2804,6 +2939,70 @@ class AutomationWindow(QMainWindow):
             # Startzeitprüfung laufen.
             self._start_automation_now(initial_start=False)
             return
+
+        if self.shutdown_elite_after_finish:
+            self.shutdown_elite_after_finish = False
+
+            try:
+                self._shutdown_elite_via_menu()
+            except Exception as exc:
+                self.log(
+                    "Elite Dangerous konnte nach dem Routenabschluss nicht "
+                    f"automatisch beendet werden: {exc}"
+                )
+
+        if self.shutdown_pc_after_finish:
+            self.shutdown_pc_after_finish = False
+
+            if self.exit_elite_checkbox.isChecked():
+                self.log(
+                    "PC-Ausschalten wartet, bis Elite Dangerous vollständig beendet ist..."
+                )
+
+                elite_closed = False
+
+                for remaining_seconds in range(60, 0, -2):
+                    QApplication.processEvents()
+
+                    if not self._is_elite_running():
+                        elite_closed = True
+                        self.log(
+                            "Elite Dangerous wird nicht mehr erkannt. "
+                            "PC darf jetzt ausgeschaltet werden."
+                        )
+                        break
+
+                    if remaining_seconds % 10 == 0:
+                        self.log(
+                            f"Elite Dangerous läuft noch. "
+                            f"Warte weiter ({remaining_seconds} s)..."
+                        )
+
+                    time.sleep(2.0)
+
+                if not elite_closed:
+                    self.log(
+                        "Elite Dangerous wird nach 60 Sekunden weiterhin erkannt. "
+                        "Der PC wird aus Sicherheitsgründen NICHT ausgeschaltet."
+                    )
+                    self._set_automation_running(False)
+                    return
+
+            else:
+                # Auch wenn Elite nicht automatisch beendet werden soll, wird
+                # vor dem Herunterfahren geprüft, ob es wirklich nicht mehr läuft.
+                if self._is_elite_running():
+                    self.log(
+                        "Elite Dangerous wird noch erkannt. "
+                        "Der PC wird aus Sicherheitsgründen NICHT ausgeschaltet."
+                    )
+                    self._set_automation_running(False)
+                    return
+
+            try:
+                self._shutdown_pc()
+            except Exception as exc:
+                self.log(f"Der PC konnte nicht automatisch ausgeschaltet werden: {exc}")
 
         self._set_automation_running(False)
 
@@ -2832,6 +3031,8 @@ class AutomationWindow(QMainWindow):
         self.tank_test_button.setEnabled(not running)
 
         self.auto_refuel_checkbox.setEnabled(not running)
+        self.exit_elite_checkbox.setEnabled(not running)
+        self.shutdown_pc_checkbox.setEnabled(not running)
         self.scheduled_start_checkbox.setEnabled(not running)
         self.scheduled_start_edit.setEnabled(
             not running and self.scheduled_start_checkbox.isChecked()
