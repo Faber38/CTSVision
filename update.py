@@ -16,7 +16,7 @@ from datetime import datetime
 from pathlib import Path
 
 GITHUB_OWNER = "Faber38"
-GITHUB_REPO = "CTSV"
+GITHUB_REPO = "CTSVision"
 CURRENT_VERSION = "1.7.1"
 
 LATEST_RELEASE_API = (
@@ -289,6 +289,22 @@ def _wait_for_parent_exit(pid: int, timeout: float = 30.0) -> None:
         )
 
 
+def _ensure_script_permissions(install_dir: Path) -> None:
+    """
+    Stellt nach einem ZIP-Update die Linux-Ausführungsrechte der
+    Start-/Installationsskripte wieder her.
+    """
+
+    for script_name in ("start.sh", "install.sh"):
+        script = install_dir / script_name
+
+        if not script.exists():
+            continue
+
+        current_mode = script.stat().st_mode
+        script.chmod(current_mode | 0o111)
+
+
 def _restart_ctsvision(install_dir: Path) -> None:
     automation = install_dir / "automation.py"
     automation_gui = install_dir / "automation_gui.py"
@@ -337,6 +353,11 @@ def apply_update(
             raise RuntimeError("Release-ZIP enthält keine automation_gui.py.")
 
         _copy_release(release_root, install_dir)
+
+        # ZIP-Archive erhalten Linux-Ausführungsrechte nicht immer zuverlässig.
+        # Deshalb setzen wir sie nach jedem Update ausdrücklich wieder.
+        _ensure_script_permissions(install_dir)
+
         _restart_ctsvision(install_dir)
         return 0
 
