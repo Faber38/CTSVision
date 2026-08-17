@@ -3,6 +3,7 @@ from __future__ import annotations
 import threading
 import time
 import subprocess
+import os
 from datetime import datetime
 from pathlib import Path
 
@@ -56,6 +57,14 @@ from vision import Vision
 from vision_wizard import VisionWizardWindow
 from tank_controller import TankController, TankStatus
 from tank_wizard import TankWizardWindow
+from update import (
+    CURRENT_VERSION,
+    UpdateInfo,
+    check_for_update,
+    download_release,
+    launch_installer,
+    open_release_page,
+)
 
 
 class TankTestWorker(QObject):
@@ -749,6 +758,9 @@ class AutomationWindow(QMainWindow):
     Hauptfenster der Carrier-Automatik.
     """
 
+    update_check_result = Signal(object)
+    update_check_error = Signal()
+
     def __init__(self) -> None:
         super().__init__()
 
@@ -802,6 +814,11 @@ class AutomationWindow(QMainWindow):
         self._build_ui()
         self._apply_theme()
 
+        self.update_check_result.connect(self._apply_update_info)
+        self.update_check_error.connect(self._update_check_failed)
+
+        QTimer.singleShot(750, self._start_update_check)
+
         # CTSVision startet auch ohne Elite. Danach wird in kurzem Abstand
         # nur so lange geprüft, bis Elite einmal erkannt wurde.
         self.elite_detection_timer.start()
@@ -839,6 +856,178 @@ class AutomationWindow(QMainWindow):
 
                 except RouteManagerError as exc:
                     self.log("Automatisches Laden der Route " f"fehlgeschlagen: {exc}")
+
+    def _start_update_check(self) -> None:
+        def worker() -> None:
+            try:
+                info = check_for_update()
+                self.update_check_result.emit(info)
+            except Exception:
+                self.update_check_error.emit()
+
+        threading.Thread(
+            target=worker,
+            name="CTSVision-UpdateCheck",
+            daemon=True,
+        ).start()
+
+    def _apply_update_info(self, info: UpdateInfo) -> None:
+        self.update_info = info
+        self.update_check_finished = True
+
+        if info.update_available:
+            self.version_label.setText(
+                f"Update verfügbar\nVersion {info.latest_version}"
+            )
+            self.version_label.setObjectName("versionBadgeUpdate")
+            self.version_label.setToolTip(
+                f"CTSVision {info.latest_version} ist verfügbar."
+            )
+            self.log(
+                f"Neue CTSVision-Version verfügbar: "
+                f"{info.current_version} → {info.latest_version}"
+            )
+        else:
+            self.version_label.setText(f"Version {CURRENT_VERSION}\nStable")
+            self.version_label.setObjectName("versionBadge")
+            self.version_label.setToolTip("CTSVision ist aktuell.")
+
+        self.version_label.style().unpolish(self.version_label)
+        self.version_label.style().polish(self.version_label)
+
+    def _update_check_failed(self) -> None:
+        self.update_info = None
+        self.update_check_finished = True
+        self.version_label.setToolTip(
+            "Versionsprüfung derzeit nicht möglich. CTSVision funktioniert normal."
+        )
+        self.log(
+            "Versionsprüfung konnte nicht durchgeführt werden. "
+            "CTSVision startet trotzdem normal."
+        )
+
+    @Slot()
+    def _show_update_status(self) -> None:
+        if not self.update_check_finished:
+            QMessageBox.information(
+                self,
+                "CTSVision Update",
+                "Die Versionsprüfung läuft noch.",
+            )
+            return
+
+        if self.update_info is None:
+            answer = QMessageBox.question(
+                self,
+                "CTSVision Update",
+                (
+                    f"Installierte Version: {CURRENT_VERSION}\n\n"
+                    "Die Online-Versionsprüfung war nicht möglich. "
+                    "Jetzt erneut prüfen?"
+                ),
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.Yes,
+            )
+
+            if answer == QMessageBox.StandardButton.Yes:
+                self.update_check_finished = False
+                self._start_update_check()
+
+            return
+
+        info = self.update_info
+
+        if not info.update_available:
+            QMessageBox.information(
+                self,
+                "CTSVision Update",
+                f"CTSVision {info.current_version} ist aktuell.",
+            )
+            return
+
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Icon.Information)
+        box.setWindowTitle("CTSVision Update verfügbar")
+        box.setText(f"CTSVision {info.latest_version} ist verfügbar.")
+
+        asset_text = (
+            info.asset_name
+            if info.asset_name
+            else "Kein passendes Release-ZIP gefunden"
+        )
+
+        box.setInformativeText(
+            f"Installiert: {info.current_version}\n"
+            f"Neu: {info.latest_version}\n"
+            f"Paket: {asset_text}\n\n"
+            "Vor der Installation wird automatisch ein Backup erstellt.\n\n"
+            "config/, references/, debug/, route_state.json und eigene "
+            "CSV-Routen werden nicht überschrieben."
+        )
+
+        install_button = box.addButton(
+            "Update installieren",
+            QMessageBox.ButtonRole.AcceptRole,
+        )
+        github_button = box.addButton(
+            "Release auf GitHub öffnen",
+            QMessageBox.ButtonRole.ActionRole,
+        )
+        box.addButton(
+            "Später",
+            QMessageBox.ButtonRole.RejectRole,
+        )
+
+        install_button.setEnabled(bool(info.asset_url))
+        box.exec()
+
+        if box.clickedButton() is github_button:
+            open_release_page(info.release_url)
+            return
+
+        if box.clickedButton() is install_button:
+            self._install_update(info)
+
+    def _install_update(self, info: UpdateInfo) -> None:
+        self.version_label.setEnabled(False)
+        self.version_label.setText(
+            f"Update {info.latest_version}\nwird geladen..."
+        )
+        QApplication.processEvents()
+
+        try:
+            zip_path = download_release(info)
+            install_dir = Path(__file__).resolve().parent
+
+            launch_installer(
+                zip_path=zip_path,
+                install_dir=install_dir,
+                current_version=info.current_version,
+                latest_version=info.latest_version,
+                parent_pid=os.getpid(),
+            )
+
+        except Exception as exc:
+            self.version_label.setEnabled(True)
+            self._apply_update_info(info)
+
+            QMessageBox.critical(
+                self,
+                "CTSVision Update fehlgeschlagen",
+                (
+                    "Das Update konnte nicht vorbereitet werden.\n\n"
+                    f"{exc}\n\n"
+                    "CTSVision wurde nicht verändert."
+                ),
+            )
+            return
+
+        self.log(
+            f"Update auf CTSVision {info.latest_version} wurde vorbereitet. "
+            "CTSVision wird jetzt beendet; der Updater übernimmt."
+        )
+
+        QApplication.quit()
 
     def _is_elite_running(self) -> bool:
         """
@@ -930,10 +1119,15 @@ class AutomationWindow(QMainWindow):
         header_layout.addLayout(title_block)
         header_layout.addStretch()
 
-        self.version_label = QLabel("Version 1.7\nStable")
+        self.version_label = QPushButton(f"Version {CURRENT_VERSION}\nStable")
         self.version_label.setObjectName("versionBadge")
-        self.version_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.version_label.setMinimumWidth(110)
+        self.version_label.setMinimumHeight(50)
+        self.version_label.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.version_label.clicked.connect(self._show_update_status)
+
+        self.update_info: UpdateInfo | None = None
+        self.update_check_finished = False
 
         header_layout.addWidget(self.version_label)
         layout.addLayout(header_layout)
@@ -1412,7 +1606,7 @@ class AutomationWindow(QMainWindow):
                 padding-bottom: 4px;
             }
 
-            QLabel#versionBadge {
+            QPushButton#versionBadge {
                 border: 1px solid #b8cce0;
                 border-radius: 12px;
                 padding: 6px 12px;
@@ -1420,6 +1614,25 @@ class AutomationWindow(QMainWindow):
                 color: #315f86;
                 font-weight: 700;
                 line-height: 1.2;
+            }
+
+            QPushButton#versionBadge:hover {
+                background-color: #dcecf8;
+                border-color: #78a9cc;
+            }
+
+            QPushButton#versionBadgeUpdate {
+                border: 1px solid #d59a32;
+                border-radius: 12px;
+                padding: 6px 12px;
+                background-color: #fff1c7;
+                color: #8a5500;
+                font-weight: 700;
+            }
+
+            QPushButton#versionBadgeUpdate:hover {
+                background-color: #ffe6a3;
+                border-color: #bf7d14;
             }
 
             QLabel#eliteNotice {

@@ -1,6 +1,6 @@
 {
-    "route_file": "/home/holger/Schreibtisch/Sedesi.csv",
-    "route_signature": "4b37ff911f386ad96d640997eb790abde4a244842dc538821eeb1354a896876d",
-    "current_index": 2,
-    "total_jumps": 2
+    "route_file": "/home/holger/Schreibtisch/route.csv",
+    "route_signature": "ebdac5699e1db7e296bc7c146f3a521352bf1e9454f7ab7cd9cac3828618790e",
+    "current_index": 19,
+    "total_jumps": 19
 }

@@ -322,6 +322,13 @@
       "width": 36,
       "height": 31,
       "image": "tank_auswahlpfeil_links.png"
+    },
+    "exit_menu_fortsetzen": {
+      "x": 158,
+      "y": 72,
+      "width": 448,
+      "height": 390,
+      "image": "exit_menu_fortsetzen.png"
     }
   }
 }

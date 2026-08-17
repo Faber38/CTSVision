@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
     QMainWindow,
     QMessageBox,
     QPushButton,
+    QScrollArea,
     QSizePolicy,
     QSpinBox,
     QSplitter,
@@ -32,6 +33,69 @@ from project_store import (
     save_reference,
 )
 from compare import compare_images
+
+
+class AspectRatioPixmapLabel(QLabel):
+    """
+    QLabel für Vorschau-Bilder, das seine Pixmap sauber an die
+    aktuelle Widget-Größe anpasst.
+
+    Dadurch beeinflusst die Größe des geladenen Bildes nicht mehr
+    das Qt-Layout und andere Bedienelemente können nicht in die
+    Vorschau hineinrutschen.
+    """
+
+    def __init__(self, text: str = "") -> None:
+        super().__init__(text)
+
+        self._source_pixmap = QPixmap()
+
+        self.setAlignment(Qt.AlignCenter)
+        self.setSizePolicy(
+            QSizePolicy.Expanding,
+            QSizePolicy.Expanding,
+        )
+
+    def set_source_pixmap(self, pixmap: QPixmap) -> None:
+        self._source_pixmap = pixmap
+
+        if pixmap.isNull():
+            self.setPixmap(QPixmap())
+            return
+
+        self._update_scaled_pixmap()
+
+    def clear_source_pixmap(self) -> None:
+        self._source_pixmap = QPixmap()
+        self.setPixmap(QPixmap())
+
+    def _update_scaled_pixmap(self) -> None:
+        if self._source_pixmap.isNull():
+            return
+
+        available = self.contentsRect().size()
+
+        if available.width() <= 1 or available.height() <= 1:
+            return
+
+        scaled = self._source_pixmap.scaled(
+            max(1, available.width() - 8),
+            max(1, available.height() - 8),
+            Qt.KeepAspectRatio,
+            Qt.SmoothTransformation,
+        )
+
+        super().setPixmap(scaled)
+
+    def resizeEvent(self, event) -> None:
+        super().resizeEvent(event)
+        self._update_scaled_pixmap()
+
+    def sizeHint(self):
+        # Keine Bildgröße an das Layout zurückmelden.
+        # Damit bleibt das Fensterlayout stabil.
+        return super().minimumSizeHint()
+
 
 
 class RegionOverlay(QDialog):
@@ -406,6 +470,31 @@ class VisionWizardWindow(QMainWindow):
 
         self.reference_catalog = load_reference_catalog()
 
+        # Zusätzliche CTSVision-Referenz für das sichere Beenden von Elite.
+        # Sie wird bewusst NICHT mit einem fertigen Referenzbild ausgeliefert,
+        # sondern wie die anderen Referenzen direkt auf dem jeweiligen
+        # Benutzerrechner mit dem Vision Wizard aufgenommen.
+        exit_reference_name = "exit_menu_fortsetzen"
+
+        if not any(
+            entry.get("name") == exit_reference_name
+            for entry in self.reference_catalog
+        ):
+            self.reference_catalog.append(
+                {
+                    "name": exit_reference_name,
+                    "title": "ED-Beenden – FORTSETZEN",
+                    "group": "ED beenden",
+                    "filename": "exit_menu_fortsetzen.png",
+                    "template": "assets/templates/exit_menu_fortsetzen.png",
+                    "description": (
+                        "Elite mit ESC in das Odyssey-Menü öffnen und den "
+                        "markierten Menüpunkt FORTSETZEN möglichst knapp "
+                        "und ohne dynamische Bereiche aufnehmen."
+                    ),
+                }
+            )
+
         self.catalog_by_name = {
             entry["name"]: entry for entry in self.reference_catalog
         }
@@ -452,16 +541,14 @@ class VisionWizardWindow(QMainWindow):
         template_title.setStyleSheet("font-size: 18px; " "font-weight: bold;")
         main_layout.addWidget(template_title)
 
-        self.template_preview = QLabel("Links ein Referenzbild auswählen.")
-        self.template_preview.setAlignment(Qt.AlignCenter)
+        self.template_preview = AspectRatioPixmapLabel(
+            "Links ein Referenzbild auswählen."
+        )
         self.template_preview.setMinimumHeight(180)
         self.template_preview.setMaximumHeight(220)
-        self.template_preview.setSizePolicy(
-            QSizePolicy.Ignored,
-            QSizePolicy.Ignored,
-        )
         self.template_preview.setStyleSheet(
-            "border: 1px solid gray; " "background: #202020;"
+            "border: 1px solid gray; "
+            "background: #202020;"
         )
         main_layout.addWidget(self.template_preview)
 
@@ -552,16 +639,16 @@ class VisionWizardWindow(QMainWindow):
         live_title.setStyleSheet("font-size: 18px; " "font-weight: bold;")
         main_layout.addWidget(live_title)
 
-        self.preview = QLabel("Live-Vorschau wird gestartet")
-        self.preview.setAlignment(Qt.AlignCenter)
-        self.preview.setMinimumHeight(220)
-        self.preview.setMaximumHeight(280)
-        self.preview.setSizePolicy(
-            QSizePolicy.Ignored,
-            QSizePolicy.Ignored,
+        self.preview = AspectRatioPixmapLabel(
+            "Live-Vorschau wird gestartet"
         )
-        self.preview.setStyleSheet("border: 1px solid gray; " "background: #202020;")
-        main_layout.addWidget(self.preview)
+        self.preview.setMinimumHeight(260)
+        self.preview.setStyleSheet(
+            "border: 1px solid gray; "
+            "background: #202020;"
+        )
+
+        main_layout.addWidget(self.preview, 1)
 
         splitter.addWidget(editor_panel)
         splitter.setSizes([360, 820])
@@ -761,27 +848,30 @@ class VisionWizardWindow(QMainWindow):
             description or ("Keine zusätzliche Beschreibung " "vorhanden.")
         )
 
-        template_path = Path(entry["template"])
+        template_value = str(entry.get("template", "")).strip()
 
-        if not template_path.is_absolute():
-            template_path = APP_DIR / template_path
+        if template_value:
+            template_path = Path(template_value)
 
-        if template_path.is_file():
-            pixmap = QPixmap(str(template_path))
+            if not template_path.is_absolute():
+                template_path = APP_DIR / template_path
 
-            scaled = pixmap.scaled(
-                self.template_preview.contentsRect().size(),
-                Qt.KeepAspectRatio,
-                Qt.SmoothTransformation,
-            )
+            if template_path.is_file():
+                pixmap = QPixmap(str(template_path))
 
-            self.template_preview.setPixmap(scaled)
+                self.template_preview.setText("")
+                self.template_preview.set_source_pixmap(pixmap)
 
+            else:
+                self.template_preview.clear_source_pixmap()
+                self.template_preview.setText(
+                    "Template nicht gefunden:\n" f"{template_path}"
+                )
         else:
-            self.template_preview.setPixmap(QPixmap())
-
+            self.template_preview.clear_source_pixmap()
             self.template_preview.setText(
-                "Template nicht gefunden:\n" f"{template_path}"
+                "Keine feste Vorlage vorhanden.\n"
+                "Diese Referenz wird direkt aus Elite aufgenommen."
             )
 
         config = load_config()
@@ -911,17 +1001,11 @@ class VisionWizardWindow(QMainWindow):
 
             pixmap = QPixmap.fromImage(qimage)
 
-            scaled = pixmap.scaled(
-                self.preview.contentsRect().size(),
-                Qt.KeepAspectRatio,
-                Qt.SmoothTransformation,
-            )
-
-            self.preview.setPixmap(scaled)
+            self.preview.setText("")
+            self.preview.set_source_pixmap(pixmap)
 
         except Exception as exc:
-            self.preview.setPixmap(QPixmap())
-
+            self.preview.clear_source_pixmap()
             self.preview.setText("Live-Vorschau Fehler:\n" f"{exc}")
 
     def choose_output(self) -> None:
@@ -1166,13 +1250,8 @@ class VisionWizardWindow(QMainWindow):
 
                 pixmap = QPixmap(str(output_path))
 
-                scaled = pixmap.scaled(
-                    self.preview.contentsRect().size(),
-                    Qt.KeepAspectRatio,
-                    Qt.SmoothTransformation,
-                )
-
-                self.preview.setPixmap(scaled)
+                self.preview.setText("")
+                self.preview.set_source_pixmap(pixmap)
                 self.refresh_reference_list()
 
                 QMessageBox.information(

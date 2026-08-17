@@ -22,8 +22,10 @@ from route_manager import RouteManager
 class RouteInfoWindow(QDialog):
     """Modernes Informationsfenster für die aktuell geladene Route."""
 
-    def __init__(self, parent=None) -> None:
+    def __init__(self, parent=None, dark_mode: bool = False) -> None:
         super().__init__(parent)
+
+        self.dark_mode = bool(dark_mode)
 
         self.setWindowTitle("CTSVision - Routeninformationen")
         self.resize(860, 690)
@@ -263,6 +265,193 @@ class RouteInfoWindow(QDialog):
     # --------------------------------------------------
 
     def _apply_style(self) -> None:
+        """Wendet den Hell-/Dunkelmodus des Hauptfensters an."""
+
+        if self.dark_mode:
+            self._apply_dark_style()
+        else:
+            self._apply_light_style()
+
+    def set_dark_mode(self, enabled: bool) -> None:
+        """Aktualisiert den Darstellungsmodus eines bereits geöffneten Fensters."""
+
+        enabled = bool(enabled)
+
+        if self.dark_mode == enabled:
+            return
+
+        self.dark_mode = enabled
+        self._apply_style()
+
+    def _apply_dark_style(self) -> None:
+        self.setStyleSheet("""
+            QDialog {
+                background-color: #151a20;
+                color: #d7dee7;
+                font-family: "Noto Sans", "DejaVu Sans", sans-serif;
+                font-size: 9pt;
+            }
+
+            QFrame#headerFrame {
+                background-color: #1d232a;
+                border: 1px solid #3b4652;
+                border-radius: 10px;
+            }
+
+            QLabel#headerTitle {
+                color: #76b9ea;
+                font-size: 18pt;
+                font-weight: 700;
+            }
+
+            QLabel#headerSubtitle {
+                color: #95a4b5;
+                font-size: 9pt;
+            }
+
+            QLabel#headerStatus {
+                color: #9bcaf0;
+                background-color: #1b2b38;
+                border: 1px solid #3e617c;
+                border-radius: 13px;
+                padding: 5px 11px;
+                font-weight: 700;
+            }
+
+            QFrame#card,
+            QFrame#panel {
+                background-color: #1d232a;
+                border: 1px solid #3b4652;
+                border-radius: 9px;
+            }
+
+            QFrame#nextPanel {
+                background-color: #172431;
+                border: 1px solid #355a78;
+                border-radius: 9px;
+            }
+
+            QFrame#subPanel {
+                background-color: #171d23;
+                border: 1px solid #343f49;
+                border-radius: 7px;
+            }
+
+            QLabel#cardCaption,
+            QLabel#metricCaption {
+                color: #8494a4;
+                font-size: 7.5pt;
+                font-weight: 700;
+            }
+
+            QLabel#cardValue {
+                color: #a7d4f2;
+                font-size: 10.5pt;
+                font-weight: 700;
+            }
+
+            QLabel#metricValue {
+                color: #9cc8e8;
+                font-size: 10.5pt;
+                font-weight: 700;
+            }
+
+            QLabel#sectionTitle {
+                color: #8ec7ef;
+                font-size: 10.5pt;
+                font-weight: 700;
+            }
+
+            QLabel#subSectionTitle {
+                color: #b5c3cf;
+                font-weight: 700;
+                padding-bottom: 3px;
+            }
+
+            QLabel#detailCaption {
+                color: #8c9baa;
+            }
+
+            QLabel#detailValue {
+                color: #d0d8e0;
+                font-weight: 700;
+            }
+
+            QLabel#progressPercent {
+                color: #82c0eb;
+                font-size: 10.5pt;
+                font-weight: 700;
+            }
+
+            QProgressBar {
+                background-color: #28323b;
+                border: none;
+                border-radius: 8px;
+            }
+
+            QProgressBar::chunk {
+                background-color: #2d79bd;
+                border-radius: 8px;
+            }
+
+            QLabel#currentTarget {
+                color: #9bd1f5;
+                background-color: #17303f;
+                border: 1px solid #365d72;
+                border-radius: 7px;
+                padding: 6px 9px;
+                font-size: 10.5pt;
+                font-weight: 700;
+            }
+
+            QLabel#smallTitle {
+                color: #95a4b5;
+                font-weight: 700;
+                margin-top: 2px;
+            }
+
+            QLabel#notesLabel {
+                color: #c3cdd6;
+                background-color: #171d23;
+                border: 1px solid #343f49;
+                border-radius: 6px;
+                padding: 6px 9px;
+            }
+
+            QLabel#footerStatus {
+                color: #9ee6ad;
+                background-color: #17361f;
+                border: 1px solid #3e7750;
+                border-radius: 6px;
+                padding: 7px 10px;
+                font-weight: 700;
+            }
+
+            QPushButton#closeButton {
+                color: #ffffff;
+                background-color: #256f9f;
+                border: 1px solid #3985b7;
+                border-radius: 6px;
+                padding: 8px 18px;
+                font-weight: 700;
+            }
+
+            QPushButton#closeButton:hover {
+                background-color: #3184b8;
+            }
+
+            QPushButton#closeButton:pressed {
+                background-color: #1f5d87;
+            }
+
+            QToolTip {
+                color: #e5edf5;
+                background-color: #242c34;
+                border: 1px solid #52606d;
+            }
+        """)
+
+    def _apply_light_style(self) -> None:
         self.setStyleSheet("""
             QDialog {
                 background-color: #f4f7fb;

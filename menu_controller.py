@@ -86,6 +86,57 @@ class MenuController:
             f"Bester Wert: {last_similarity * 100:.2f} %"
         )
 
+    def wait_for_reference(
+        self,
+        reference_name: str,
+        *,
+        threshold: float = 0.95,
+        timeout: float = 4.0,
+        poll_interval: float = 0.20,
+    ) -> float:
+        """
+        Wartet auf eine einzelne, positionsgebundene Vision-Referenz.
+
+        Diese Prüfung ist für feste Bildschirmelemente gedacht, die
+        keinen eigenen Navigationsgraphen benötigen – zum Beispiel
+        das Odyssey-Menü mit markiertem FORTSETZEN.
+        """
+
+        if not reference_name:
+            raise ValueError("Es wurde kein Referenzname angegeben.")
+
+        if timeout <= 0:
+            raise ValueError("Das Zeitlimit muss größer als 0 sein.")
+
+        if poll_interval <= 0:
+            raise ValueError("Das Prüfintervall muss größer als 0 sein.")
+
+        deadline = time.monotonic() + timeout
+        best_similarity = 0.0
+
+        while time.monotonic() < deadline:
+            matched, similarity = self.vision.check(
+                reference_name,
+                threshold=threshold,
+            )
+
+            best_similarity = max(best_similarity, similarity)
+
+            if matched:
+                print(
+                    f"MenuController: Referenz '{reference_name}' erkannt "
+                    f"({similarity * 100:.2f} %)"
+                )
+                return similarity
+
+            time.sleep(poll_interval)
+
+        raise MenuControllerError(
+            f"Referenz '{reference_name}' wurde innerhalb von "
+            f"{timeout:.1f} Sekunden nicht sicher erkannt. "
+            f"Bester Wert: {best_similarity * 100:.2f} %"
+        )
+
     def open_menu(
         self,
         *,

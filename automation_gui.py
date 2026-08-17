@@ -4,6 +4,7 @@ import threading
 import time
 import subprocess
 import os
+import fcntl
 from datetime import datetime
 from pathlib import Path
 
@@ -782,6 +783,9 @@ class AutomationWindow(QMainWindow):
         self.shutdown_elite_after_finish = False
         self.shutdown_pc_after_finish = False
         self.settings = load_settings()
+        self.dark_mode_enabled = bool(
+            self.settings.get("dark_mode_enabled", False)
+        )
 
         self.scheduled_start_timer = QTimer(self)
         self.scheduled_start_timer.setInterval(1000)
@@ -1070,17 +1074,7 @@ class AutomationWindow(QMainWindow):
             "✓  Elite Dangerous erkannt – CTSVision ist bereit."
         )
         self.elite_notice_label.setObjectName("eliteReady")
-        self.elite_notice_label.setStyleSheet(
-            "QLabel {"
-            "color: #25633a;"
-            "background-color: #e7f7ec;"
-            "border: 1px solid #8fc59f;"
-            "border-radius: 7px;"
-            "padding: 8px 12px;"
-            "font-weight: 700;"
-            "font-size: 9.5pt;"
-            "}"
-        )
+        self._set_elite_ready_style()
 
         self.log(
             "Elite Dangerous wurde erkannt. "
@@ -1119,6 +1113,14 @@ class AutomationWindow(QMainWindow):
         header_layout.addLayout(title_block)
         header_layout.addStretch()
 
+        self.dark_mode_checkbox = QCheckBox("🌙 Dark")
+        self.dark_mode_checkbox.setObjectName("darkModeCheck")
+        self.dark_mode_checkbox.setToolTip(
+            "Schaltet zwischen hellem und dunklem CTSVision-Design um."
+        )
+        self.dark_mode_checkbox.setChecked(self.dark_mode_enabled)
+        self.dark_mode_checkbox.toggled.connect(self._on_dark_mode_toggled)
+
         self.version_label = QPushButton(f"Version {CURRENT_VERSION}\nStable")
         self.version_label.setObjectName("versionBadge")
         self.version_label.setMinimumWidth(110)
@@ -1129,6 +1131,8 @@ class AutomationWindow(QMainWindow):
         self.update_info: UpdateInfo | None = None
         self.update_check_finished = False
 
+        header_layout.addWidget(self.dark_mode_checkbox)
+        header_layout.addSpacing(8)
         header_layout.addWidget(self.version_label)
         layout.addLayout(header_layout)
 
@@ -1487,9 +1491,19 @@ class AutomationWindow(QMainWindow):
         )
         self.tank_test_button.clicked.connect(self.start_tank_test)
 
+        self.exit_elite_test_button = QPushButton("🧪  ED-Beenden testen")
+        self.exit_elite_test_button.setObjectName("assistantButton")
+        self.exit_elite_test_button.setMinimumHeight(42)
+        self.exit_elite_test_button.setToolTip(
+            "Testet den vorhandenen Ablauf zum automatischen Beenden von "
+            "Elite Dangerous. Der PC wird bei diesem Test niemals ausgeschaltet."
+        )
+        self.exit_elite_test_button.clicked.connect(self.test_exit_elite)
+
         assistant_layout.addWidget(self.vision_wizard_button)
         assistant_layout.addWidget(self.tank_wizard_button)
         assistant_layout.addWidget(self.tank_test_button)
+        assistant_layout.addWidget(self.exit_elite_test_button)
 
         assistant_layout.addSpacing(8)
 
@@ -1585,7 +1599,387 @@ class AutomationWindow(QMainWindow):
     # --------------------------------------------------
 
     def _apply_theme(self) -> None:
-        """Wendet das zentrale, ruhige CTSVision-Erscheinungsbild an."""
+        """Wendet das gespeicherte helle oder dunkle Theme an."""
+
+        if self.dark_mode_enabled:
+            self._apply_dark_theme()
+        else:
+            self._apply_light_theme()
+
+        if hasattr(self, "tank_status_label"):
+            current_status = getattr(
+                self,
+                "_current_tank_status",
+                TankStatus.IDLE.value,
+            )
+            self.set_tank_status(current_status)
+
+        if hasattr(self, "elite_notice_label"):
+            if self._is_elite_running():
+                self._set_elite_ready_style()
+            else:
+                self._set_elite_waiting_style()
+
+    @Slot(bool)
+    def _on_dark_mode_toggled(self, enabled: bool) -> None:
+        """Schaltet das Theme um und speichert die Auswahl."""
+
+        self.dark_mode_enabled = enabled
+        self.settings["dark_mode_enabled"] = enabled
+        save_settings(self.settings)
+        self._apply_theme()
+
+        if self.route_info_window is not None:
+            self.route_info_window.set_dark_mode(enabled)
+
+    def _set_elite_waiting_style(self) -> None:
+        if self.dark_mode_enabled:
+            self.elite_notice_label.setStyleSheet(
+                "QLabel {"
+                "color: #ffd783;"
+                "background-color: #3a301a;"
+                "border: 1px solid #7d6730;"
+                "border-radius: 7px;"
+                "padding: 8px 12px;"
+                "font-weight: 700;"
+                "font-size: 9.5pt;"
+                "}"
+            )
+        else:
+            self.elite_notice_label.setStyleSheet("")
+
+    def _set_elite_ready_style(self) -> None:
+        if self.dark_mode_enabled:
+            self.elite_notice_label.setStyleSheet(
+                "QLabel {"
+                "color: #9ee6ad;"
+                "background-color: #17361f;"
+                "border: 1px solid #3e7750;"
+                "border-radius: 7px;"
+                "padding: 8px 12px;"
+                "font-weight: 700;"
+                "font-size: 9.5pt;"
+                "}"
+            )
+        else:
+            self.elite_notice_label.setStyleSheet(
+                "QLabel {"
+                "color: #25633a;"
+                "background-color: #e7f7ec;"
+                "border: 1px solid #8fc59f;"
+                "border-radius: 7px;"
+                "padding: 8px 12px;"
+                "font-weight: 700;"
+                "font-size: 9.5pt;"
+                "}"
+            )
+
+    def _apply_dark_theme(self) -> None:
+        self.setStyleSheet("""
+            QMainWindow, QWidget {
+                background-color: #151a20;
+                color: #d7dee7;
+                font-size: 10pt;
+            }
+
+            QLabel#appTitle {
+                font-size: 20pt;
+                font-weight: 700;
+                color: #76b9ea;
+            }
+
+            QLabel#appSubtitle {
+                color: #95a4b5;
+                font-size: 9.5pt;
+                padding-bottom: 4px;
+            }
+
+            QPushButton#versionBadge {
+                border: 1px solid #3d617d;
+                border-radius: 12px;
+                padding: 6px 12px;
+                background-color: #1d2c38;
+                color: #9bd1f5;
+                font-weight: 700;
+            }
+
+            QPushButton#versionBadge:hover {
+                background-color: #263b4b;
+                border-color: #5680a0;
+            }
+
+            QPushButton#versionBadgeUpdate {
+                border: 1px solid #a87524;
+                border-radius: 12px;
+                padding: 6px 12px;
+                background-color: #493715;
+                color: #ffd783;
+                font-weight: 700;
+            }
+
+            QPushButton#versionBadgeUpdate:hover {
+                background-color: #5a4318;
+                border-color: #cf9635;
+            }
+
+            QCheckBox#darkModeCheck {
+                color: #d7dee7;
+                font-weight: 700;
+                padding: 5px 8px;
+            }
+
+            QLabel#eliteNotice {
+                color: #ffd783;
+                background-color: #3a301a;
+                border: 1px solid #7d6730;
+                border-radius: 7px;
+                padding: 8px 12px;
+                font-weight: 700;
+                font-size: 9.5pt;
+            }
+
+            QGroupBox {
+                border: 1px solid #3b4652;
+                border-radius: 8px;
+                margin-top: 10px;
+                padding-top: 10px;
+                font-weight: 700;
+                background-color: #1d232a;
+            }
+
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 12px;
+                padding: 0 6px;
+                color: #b9c7d4;
+            }
+
+            QGroupBox#routeBox {
+                background-color: #172431;
+                border-color: #355a78;
+            }
+            QGroupBox#routeBox::title { color: #7fc2ef; }
+
+            QGroupBox#infoBox {
+                background-color: #172725;
+                border-color: #35645f;
+            }
+            QGroupBox#infoBox::title { color: #72c9bf; }
+
+            QGroupBox#tankBox {
+                background-color: #1a291b;
+                border-color: #466b45;
+            }
+            QGroupBox#tankBox::title { color: #8ec98a; }
+
+            QGroupBox#finishBox {
+                background-color: #2b221b;
+                border-color: #70543b;
+            }
+            QGroupBox#finishBox::title { color: #d5a46e; }
+
+            QGroupBox#assistantBox {
+                background-color: #241d2d;
+                border-color: #594775;
+            }
+            QGroupBox#assistantBox::title { color: #b9a0dd; }
+
+            QGroupBox#statusBox {
+                background-color: #1b2229;
+                border-color: #435261;
+            }
+            QGroupBox#statusBox::title { color: #a9bbcb; }
+
+            QCheckBox#autoRefuelCheck {
+                font-weight: 600;
+                color: #9bd39a;
+            }
+
+            QCheckBox#scheduledStartCheck {
+                font-weight: 600;
+                color: #8ec7ef;
+            }
+
+            QCheckBox#exitEliteCheck, QCheckBox#shutdownPcCheck {
+                font-weight: 600;
+                color: #e0b47e;
+            }
+
+            QDateTimeEdit#scheduledStartEdit,
+            QLineEdit, QSpinBox, QTextEdit {
+                background-color: #11161b;
+                color: #dbe3eb;
+                border: 1px solid #465563;
+                border-radius: 5px;
+                padding: 5px;
+                selection-background-color: #2b6f9e;
+            }
+
+            QDateTimeEdit#scheduledStartEdit:disabled,
+            QSpinBox:disabled, QLineEdit:disabled {
+                color: #75818c;
+                background-color: #20262c;
+                border-color: #343e47;
+            }
+
+            QLabel#scheduledStartStatus {
+                color: #9bcaf0;
+                background-color: #1b2b38;
+                border: 1px solid #3e617c;
+                border-radius: 5px;
+                padding: 4px 7px;
+                font-weight: 700;
+            }
+
+            QWidget#tankOptionCard {
+                background-color: #121913;
+                border: 1px solid #405a40;
+                border-radius: 7px;
+            }
+
+            QLabel#tankOptionTitle {
+                color: #9fce9f;
+                font-size: 9.5pt;
+                font-weight: 700;
+                background: transparent;
+            }
+
+            QLabel#tankOptionHint {
+                color: #859286;
+                font-size: 8pt;
+                background: transparent;
+            }
+
+            QSpinBox#tankSpinBox {
+                min-height: 30px;
+                font-weight: 700;
+                color: #b8ddb7;
+                background-color: #101710;
+                border-color: #466946;
+                padding-right: 27px;
+            }
+
+            QSpinBox::up-button {
+                subcontrol-origin: border;
+                subcontrol-position: top right;
+                width: 24px;
+                background-color: #203a27;
+                border-left: 1px solid #3f6648;
+                border-bottom: 1px solid #3f6648;
+                border-top-right-radius: 4px;
+            }
+
+            QSpinBox::down-button {
+                subcontrol-origin: border;
+                subcontrol-position: bottom right;
+                width: 24px;
+                background-color: #44331f;
+                border-left: 1px solid #73582f;
+                border-top: 1px solid #73582f;
+                border-bottom-right-radius: 4px;
+            }
+
+            QPushButton {
+                min-height: 28px;
+                padding: 5px 11px;
+                border: 1px solid #465564;
+                border-radius: 6px;
+                background-color: #222a32;
+                color: #dbe3eb;
+            }
+
+            QPushButton:hover {
+                background-color: #2b3945;
+                border-color: #5f83a1;
+            }
+
+            QPushButton:pressed {
+                background-color: #1b242c;
+            }
+
+            QPushButton:disabled {
+                color: #6f7b86;
+                background-color: #1d2328;
+                border-color: #313a42;
+            }
+
+            QPushButton#primaryButton {
+                color: #ffffff;
+                background-color: #256f9f;
+                border-color: #3985b7;
+                font-weight: 700;
+                font-size: 10.5pt;
+            }
+
+            QPushButton#primaryButton:hover {
+                background-color: #3184b8;
+            }
+
+            QPushButton#dangerButton {
+                color: #f0a2a2;
+                background-color: #382021;
+                border-color: #714043;
+                font-weight: 700;
+            }
+
+            QPushButton#secondaryButton {
+                color: #aac5d7;
+                background-color: #1d2a33;
+                border-color: #405d70;
+                font-weight: 600;
+            }
+
+            QPushButton#assistantButton {
+                text-align: left;
+                padding-left: 14px;
+                font-weight: 600;
+                color: #c1abe3;
+                background-color: #211b29;
+                border-color: #594875;
+            }
+
+            QLabel#infoValue {
+                color: #8fcac5;
+                font-weight: 700;
+            }
+
+            QLabel#targetValue {
+                color: #8fd0f2;
+                background-color: #172c37;
+                border: 1px solid #365d72;
+                border-radius: 5px;
+                padding: 4px 7px;
+                font-size: 11pt;
+                font-weight: 700;
+            }
+
+            QTextEdit#statusLog {
+                font-family: monospace;
+                font-size: 9.5pt;
+                color: #cbd5df;
+                background-color: #10151a;
+                border-color: #3e4b57;
+            }
+
+            QCheckBox {
+                spacing: 7px;
+            }
+
+            QCheckBox::indicator {
+                width: 16px;
+                height: 16px;
+            }
+
+            QToolTip {
+                color: #e5edf5;
+                background-color: #242c34;
+                border: 1px solid #52606d;
+                padding: 4px;
+            }
+        """)
+
+    def _apply_light_theme(self) -> None:
+        """Wendet das helle CTSVision-Erscheinungsbild an."""
 
         self.setStyleSheet("""
             QMainWindow, QWidget {
@@ -2006,12 +2400,38 @@ class AutomationWindow(QMainWindow):
             ),
         }
 
+        self._current_tank_status = status_text
+
+        if self.dark_mode_enabled:
+            styles = {
+                TankStatus.IDLE.value: (
+                    "●  Bereit",
+                    "#aab4be",
+                    "#242a30",
+                ),
+                TankStatus.RUNNING.value: (
+                    "●  Tankvorgang läuft",
+                    "#f1c36d",
+                    "#3b311d",
+                ),
+                TankStatus.SUCCESS.value: (
+                    "●  Erfolgreich",
+                    "#8ed6a5",
+                    "#193523",
+                ),
+                TankStatus.ERROR.value: (
+                    "●  Fehler",
+                    "#f09a9a",
+                    "#3a2020",
+                ),
+            }
+
         text, foreground, background = styles.get(
             status_text,
             (
                 f"●  {status_text}",
-                "#6b7280",
-                "#f3f4f6",
+                "#aab4be" if self.dark_mode_enabled else "#6b7280",
+                "#242a30" if self.dark_mode_enabled else "#f3f4f6",
             ),
         )
 
@@ -2020,7 +2440,7 @@ class AutomationWindow(QMainWindow):
             "QLabel {"
             f"color: {foreground};"
             f"background-color: {background};"
-            "border: 1px solid #b8b8b8;"
+            f"border: 1px solid {'#46515b' if self.dark_mode_enabled else '#b8b8b8'};"
             "border-radius: 4px;"
             "padding: 5px 8px;"
             "font-weight: bold;"
@@ -2231,7 +2651,12 @@ class AutomationWindow(QMainWindow):
         """
 
         if self.route_info_window is None:
-            self.route_info_window = RouteInfoWindow(parent=self)
+            self.route_info_window = RouteInfoWindow(
+                parent=self,
+                dark_mode=self.dark_mode_enabled,
+            )
+        else:
+            self.route_info_window.set_dark_mode(self.dark_mode_enabled)
 
         if self.route_manager is None:
             self.route_info_window.clear_route()
@@ -2549,6 +2974,7 @@ class AutomationWindow(QMainWindow):
 
         self.start_button.setEnabled(not running)
         self.tank_test_button.setEnabled(not running)
+        self.exit_elite_test_button.setEnabled(not running)
 
         self.route_button.setEnabled(not running)
         self.restart_button.setEnabled(not running)
@@ -2850,6 +3276,7 @@ class AutomationWindow(QMainWindow):
         self.vision_wizard_button.setEnabled(not waiting)
         self.tank_wizard_button.setEnabled(not waiting)
         self.tank_test_button.setEnabled(not waiting)
+        self.exit_elite_test_button.setEnabled(not waiting)
         self.auto_refuel_checkbox.setEnabled(not waiting)
         self.exit_elite_checkbox.setEnabled(not waiting)
         self.shutdown_pc_checkbox.setEnabled(not waiting)
@@ -3076,21 +3503,83 @@ class AutomationWindow(QMainWindow):
 
     # --------------------------------------------------
 
+    @Slot()
+    def test_exit_elite(self) -> None:
+        """Testet ausschließlich den vorhandenen Ablauf zum Beenden von Elite."""
+
+        if self.automation_thread is not None or self.scheduled_start_active:
+            QMessageBox.information(
+                self, "Test nicht möglich",
+                "Während einer laufenden oder eingeplanten Route kann "
+                "das Beenden von Elite nicht getestet werden.",
+            )
+            return
+
+        if self.tank_test_thread is not None:
+            QMessageBox.information(
+                self, "Test nicht möglich",
+                "Während der Tankfunktions-Prüfung kann Elite nicht beendet werden.",
+            )
+            return
+
+        if not self._is_elite_running():
+            QMessageBox.information(
+                self, "Elite Dangerous nicht erkannt",
+                "Elite Dangerous läuft derzeit nicht oder wurde nicht erkannt.",
+            )
+            return
+
+        answer = QMessageBox.question(
+            self,
+            "ED-Beenden testen",
+            (
+                "Elite Dangerous wird jetzt testweise über das Spielmenü beendet.\n\n"
+                "Es wird derselbe Ablauf verwendet wie nach einem erfolgreichen "
+                "Routenabschluss.\n\n"
+                "Der PC wird bei diesem Test NICHT ausgeschaltet.\n\n"
+                "Test jetzt starten?"
+            ),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+
+        self.exit_elite_test_button.setEnabled(False)
+        self.log("--------------------------------")
+        self.log("ED-Beenden-Test wird gestartet.")
+
+        try:
+            self._shutdown_elite_via_menu()
+        except Exception as exc:
+            self.log(f"ED-Beenden-Test fehlgeschlagen: {exc}")
+            QMessageBox.critical(
+                self,
+                "ED-Beenden-Test fehlgeschlagen",
+                f"Elite Dangerous konnte nicht automatisch beendet werden.\n\n{exc}",
+            )
+        finally:
+            self.exit_elite_test_button.setEnabled(True)
+
     def _shutdown_elite_via_menu(self) -> None:
         """
         Beendet Elite Dangerous nach erfolgreich abgeschlossener Route
         über den bekannten Menüweg.
 
         Ablauf:
-            - Menü 1 sicher erreichen
-            - ESC
+            - zuerst prüfen, ob das Odyssey-Menü mit FORTSETZEN
+              bereits geöffnet ist
+            - andernfalls Menü 1 sicher herstellen
+            - falls nötig bis zu 5x mit BACKSPACE zurückgehen
+            - ESC drücken
+            - Odyssey-Menü anhand 'exit_menu_fortsetzen' sicher bestätigen
             - 5x S
             - ENTER
             - 1x D
             - ENTER
         """
 
-        self.log("Spielende wird vorbereitet. Menü 1 wird gesucht...")
+        self.log("Spielende wird vorbereitet. Ausgangszustand wird geprüft...")
 
         vision = Vision()
         navigator = Navigator(
@@ -3103,23 +3592,174 @@ class AutomationWindow(QMainWindow):
             press_key=press_key,
         )
 
-        controller.navigator.goto(
-            "main_menu",
-            "main_menu_block_carrierdienste",
-            max_actions=14,
-            state_timeout=4.0,
+        # --------------------------------------------------
+        # 1. Prüfen, ob das Odyssey-Menü bereits geöffnet ist.
+        # --------------------------------------------------
+
+        try:
+            similarity = controller.wait_for_reference(
+                "exit_menu_fortsetzen",
+                threshold=0.95,
+                timeout=1.5,
+                poll_interval=0.20,
+            )
+
+            self.log(
+                "Odyssey-Menü ist bereits geöffnet. "
+                f"FORTSETZEN wurde mit {similarity * 100:.2f} % erkannt."
+            )
+
+            exit_menu_open = True
+
+        except KeyError as exc:
+            raise RuntimeError(
+                "Die Referenz 'exit_menu_fortsetzen' fehlt. "
+                "Bitte zuerst im Sprung Wizard unter 'ED beenden' "
+                "die Referenz FORTSETZEN aufnehmen."
+            ) from exc
+
+        except Exception:
+            exit_menu_open = False
+
+        # --------------------------------------------------
+        # 2. Falls das Odyssey-Menü noch nicht offen ist:
+        #    Menü 1 sicher herstellen.
+        # --------------------------------------------------
+
+        if not exit_menu_open:
+            self.log(
+                "Odyssey-Menü ist noch nicht geöffnet. "
+                "Menü 1 wird jetzt sicher hergestellt..."
+            )
+
+            main_menu_reached = False
+            last_error: Exception | None = None
+
+            for attempt in range(1, 6):
+                self.log(
+                    f"Menü-1-Erkennung vor Spielende: Versuch {attempt}/5..."
+                )
+
+                try:
+                    controller.navigator.goto(
+                        "main_menu",
+                        "main_menu_block_carrierdienste",
+                        max_actions=14,
+                        state_timeout=4.0,
+                    )
+
+                    main_menu_reached = True
+
+                    self.log(
+                        "Menü 1 wurde sicher erkannt. "
+                        "Carrier-Dienste sind angewählt."
+                    )
+
+                    break
+
+                except Exception as exc:
+                    last_error = exc
+
+                    self.log(
+                        "Menü 1 wurde nicht erkannt: "
+                        f"{exc}"
+                    )
+
+                    if attempt >= 5:
+                        break
+
+                    self.log(
+                        "BACKSPACE wird gedrückt, "
+                        "um eine Menüebene zurückzugehen..."
+                    )
+
+                    press_key(
+                        "backspace",
+                        hold_time=0.20,
+                        after_delay=2.00,
+                    )
+
+            if not main_menu_reached:
+                raise RuntimeError(
+                    "Menü 1 konnte vor dem automatischen Beenden "
+                    "auch nach 5 Versuchen nicht sicher erreicht werden. "
+                    f"Letzter Fehler: {last_error}"
+                )
+
+            # --------------------------------------------------
+            # 3. Von Menü 1 aus Odyssey-Menü öffnen und bestätigen.
+            # --------------------------------------------------
+
+            self.log(
+                "Menü 1 ist sicher. "
+                "Odyssey-Menü wird jetzt mit ESC geöffnet..."
+            )
+
+            press_key(
+                "esc",
+                hold_time=0.20,
+                after_delay=1.50,
+            )
+
+            try:
+                similarity = controller.wait_for_reference(
+                    "exit_menu_fortsetzen",
+                    threshold=0.95,
+                    timeout=4.0,
+                    poll_interval=0.20,
+                )
+
+            except KeyError as exc:
+                raise RuntimeError(
+                    "Die Referenz 'exit_menu_fortsetzen' fehlt. "
+                    "Bitte zuerst im Sprung Wizard unter 'ED beenden' "
+                    "die Referenz FORTSETZEN aufnehmen."
+                ) from exc
+
+            except Exception as exc:
+                raise RuntimeError(
+                    "Das Odyssey-Menü wurde nach ESC nicht sicher erkannt. "
+                    f"{exc}"
+                ) from exc
+
+            self.log(
+                "Odyssey-Menü wurde nach ESC sicher erkannt. "
+                f"FORTSETZEN: {similarity * 100:.2f} %."
+            )
+
+        # --------------------------------------------------
+        # 4. Erst jetzt darf der eigentliche Beenden-Ablauf laufen.
+        # --------------------------------------------------
+
+        self.log(
+            "Odyssey-Menü ist sicher bestätigt. "
+            "Elite Dangerous wird jetzt beendet..."
         )
 
-        self.log("Menü 1 wurde sicher erkannt. Elite wird jetzt beendet...")
-
-        press_key("esc", hold_time=0.20, after_delay=1.50)
-
         for _ in range(5):
-            press_key("s", hold_time=0.12, after_delay=0.20)
+            press_key(
+                "s",
+                hold_time=0.12,
+                after_delay=0.20,
+            )
 
-        press_key("enter", hold_time=0.20, after_delay=1.00)
-        press_key("d", hold_time=0.20, after_delay=0.50)
-        press_key("enter", hold_time=0.20, after_delay=1.00)
+        press_key(
+            "enter",
+            hold_time=0.20,
+            after_delay=1.00,
+        )
+
+        press_key(
+            "d",
+            hold_time=0.20,
+            after_delay=0.50,
+        )
+
+        press_key(
+            "enter",
+            hold_time=0.20,
+            after_delay=1.00,
+        )
 
         self.log("Beenden-Befehl wurde an Elite Dangerous gesendet.")
 
@@ -3242,6 +3882,7 @@ class AutomationWindow(QMainWindow):
         self.vision_wizard_button.setEnabled(not running)
         self.tank_wizard_button.setEnabled(not running)
         self.tank_test_button.setEnabled(not running)
+        self.exit_elite_test_button.setEnabled(not running)
 
         self.auto_refuel_checkbox.setEnabled(not running)
         self.exit_elite_checkbox.setEnabled(not running)
@@ -3295,8 +3936,57 @@ class AutomationWindow(QMainWindow):
             self.automation_worker.on_carrier_jump()
 
 
+_instance_lock_file = None
+
+
+def _acquire_single_instance_lock() -> bool:
+    """
+    Stellt sicher, dass CTSVision nur einmal gleichzeitig läuft.
+
+    Die Sperre wird vom Betriebssystem automatisch freigegeben,
+    sobald der laufende CTSVision-Prozess beendet wird.
+    """
+
+    global _instance_lock_file
+
+    lock_path = Path("/tmp/ctsvision_single_instance.lock")
+
+    try:
+        _instance_lock_file = lock_path.open("a+", encoding="utf-8")
+
+        fcntl.flock(
+            _instance_lock_file.fileno(),
+            fcntl.LOCK_EX | fcntl.LOCK_NB,
+        )
+
+    except BlockingIOError:
+        if _instance_lock_file is not None:
+            _instance_lock_file.close()
+            _instance_lock_file = None
+
+        return False
+
+    _instance_lock_file.seek(0)
+    _instance_lock_file.truncate()
+    _instance_lock_file.write(str(os.getpid()))
+    _instance_lock_file.flush()
+
+    return True
+
+
 def run_gui() -> None:
     app = QApplication.instance() or QApplication([])
+
+    if not _acquire_single_instance_lock():
+        QMessageBox.information(
+            None,
+            "CTSVision läuft bereits",
+            (
+                "CTSVision ist bereits gestartet.\n\n"
+                "Es kann nur eine Instanz gleichzeitig ausgeführt werden."
+            ),
+        )
+        return
 
     window = AutomationWindow()
     window.show()

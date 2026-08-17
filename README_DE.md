@@ -80,6 +80,8 @@ Vor der ersten Verwendung sollten mit dem **Vision Wizard** Referenzbilder für 
 
 Eine gute Qualität der Referenzbilder ist entscheidend für eine zuverlässige Bilderkennung.
 
+Tipp: Beim Erstellen der Referenzbilder können die Koordinatenfelder im Vision Wizard mit den Pfeiltasten ↑ ↓ sehr genau verändert werden. Das ist besonders hilfreich, wenn der Auswahlrahmen auf dem Spielbildschirm nicht oder nur schlecht sichtbar ist.
+
 ## Empfehlungen
 
 - Referenzbilder immer **so klein wie möglich und nur so groß wie nötig** erstellen.
@@ -93,6 +95,26 @@ Eine gute Qualität der Referenzbilder ist entscheidend für eine zuverlässige 
 CTSVision trifft keine unsicheren Entscheidungen.
 
 **Robustheit vor Geschwindigkeit.**
+
+### Version 1.8
+✨ Neu
+- **Dark Mode** hinzugefügt.
+  Die Darstellung kann direkt in CTSVision umgeschaltet werden und wird dauerhaft gespeichert.
+  Der Dark Mode wird auch im separaten Routeninfo-Fenster verwendet.
+- **Single-Instance-Schutz** hinzugefügt.
+  CTSVision kann nicht mehr versehentlich mehrfach gleichzeitig gestartet werden.
+- **Automatisches Beenden von Elite Dangerous überarbeitet und abgesichert.**
+  Vor dem Beenden stellt CTSVision einen bekannten Menü-Zustand sicher.
+  Falls erforderlich, wird mit BACKSPACE schrittweise bis zu Menü 1 zurückgegangen.
+  Anschließend wird das Odyssey-Menü geöffnet und über die neue Vision-Referenz
+  `exit_menu_fortsetzen` sicher erkannt, bevor die Tasteneingaben zum Beenden ausgeführt werden.
+- **Testfunktion für das Beenden von Elite Dangerous** hinzugefügt.
+  Über „ED-Beenden testen“ kann der Beenden-Ablauf unabhängig von einer Route geprüft werden.
+  Der PC wird bei diesem Test niemals ausgeschaltet.
+- **Vision Wizard erweitert.**
+  Neue Referenz „ED-Beenden – FORTSETZEN“ für die sichere Erkennung des Odyssey-Menüs.
+  Die Bildvorschau wurde verbessert und passt sich beim Vergrößern oder Verkleinern des Fensters
+  korrekt an, ohne Referenzbilder abzuschneiden oder Bedienelemente zu verschieben.
 
 ### Version 1.7.1
 ✨ Neu
