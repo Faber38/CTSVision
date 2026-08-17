@@ -7,5 +7,5 @@
     "monitor_power_off": false,
     "exit_elite_after_route": true,
     "shutdown_pc_after_route": true,
-    "dark_mode_enabled": true
+    "dark_mode_enabled": false
 }

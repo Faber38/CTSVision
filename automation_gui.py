@@ -40,6 +40,7 @@ from PySide6.QtWidgets import (
 )
 
 from journal_monitor import JournalMonitor
+from help_window import HelpWindow
 from keyboard_control import press_key, type_text
 from menu_controller import MenuController
 from mouse_control import (
@@ -769,6 +770,7 @@ class AutomationWindow(QMainWindow):
         self.route_manager: RouteManager | None = None
 
         self.route_info_window: RouteInfoWindow | None = None
+        self.help_window: HelpWindow | None = None
 
         self.vision_wizard_window: VisionWizardWindow | None = None
         self.tank_wizard_window: TankWizardWindow | None = None
@@ -1113,6 +1115,14 @@ class AutomationWindow(QMainWindow):
         header_layout.addLayout(title_block)
         header_layout.addStretch()
 
+        self.help_button = QPushButton("?  Hilfe")
+        self.help_button.setObjectName("helpButton")
+        self.help_button.setToolTip(
+            "Öffnet die integrierte deutschsprachige Hilfe zu CTSVision."
+        )
+        self.help_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.help_button.clicked.connect(self.open_help)
+
         self.dark_mode_checkbox = QCheckBox("🌙 Dark")
         self.dark_mode_checkbox.setObjectName("darkModeCheck")
         self.dark_mode_checkbox.setToolTip(
@@ -1131,6 +1141,8 @@ class AutomationWindow(QMainWindow):
         self.update_info: UpdateInfo | None = None
         self.update_check_finished = False
 
+        header_layout.addWidget(self.help_button)
+        header_layout.addSpacing(8)
         header_layout.addWidget(self.dark_mode_checkbox)
         header_layout.addSpacing(8)
         header_layout.addWidget(self.version_label)
@@ -1632,6 +1644,9 @@ class AutomationWindow(QMainWindow):
         if self.route_info_window is not None:
             self.route_info_window.set_dark_mode(enabled)
 
+        if self.help_window is not None:
+            self.help_window.set_dark_mode(enabled)
+
     def _set_elite_waiting_style(self) -> None:
         if self.dark_mode_enabled:
             self.elite_notice_label.setStyleSheet(
@@ -1726,6 +1741,21 @@ class AutomationWindow(QMainWindow):
                 color: #d7dee7;
                 font-weight: 700;
                 padding: 5px 8px;
+            }
+
+            QPushButton#helpButton {
+                min-height: 30px;
+                padding: 5px 12px;
+                color: #9bd1f5;
+                background-color: #1d2c38;
+                border: 1px solid #3d617d;
+                border-radius: 7px;
+                font-weight: 700;
+            }
+
+            QPushButton#helpButton:hover {
+                background-color: #263b4b;
+                border-color: #5680a0;
             }
 
             QLabel#eliteNotice {
@@ -2027,6 +2057,21 @@ class AutomationWindow(QMainWindow):
             QPushButton#versionBadgeUpdate:hover {
                 background-color: #ffe6a3;
                 border-color: #bf7d14;
+            }
+
+            QPushButton#helpButton {
+                min-height: 30px;
+                padding: 5px 12px;
+                color: #315f86;
+                background-color: #eaf3fb;
+                border: 1px solid #b8cce0;
+                border-radius: 7px;
+                font-weight: 700;
+            }
+
+            QPushButton#helpButton:hover {
+                background-color: #dcecf8;
+                border-color: #78a9cc;
             }
 
             QLabel#eliteNotice {
@@ -2642,6 +2687,23 @@ class AutomationWindow(QMainWindow):
 
         if self.route_info_window is not None:
             self.route_info_window.update_route(self.route_manager)
+
+    # --------------------------------------------------
+
+    def open_help(self) -> None:
+        """Öffnet die integrierte deutschsprachige CTSVision-Hilfe."""
+
+        if self.help_window is None:
+            self.help_window = HelpWindow(
+                parent=self,
+                dark_mode=self.dark_mode_enabled,
+            )
+        else:
+            self.help_window.set_dark_mode(self.dark_mode_enabled)
+
+        self.help_window.show()
+        self.help_window.raise_()
+        self.help_window.activateWindow()
 
     # --------------------------------------------------
 
