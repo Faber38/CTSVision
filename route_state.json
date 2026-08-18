@@ -1,6 +1,6 @@
 {
-    "route_file": "/home/holger/Schreibtisch/route.csv",
-    "route_signature": "ebdac5699e1db7e296bc7c146f3a521352bf1e9454f7ab7cd9cac3828618790e",
-    "current_index": 19,
-    "total_jumps": 19
+    "route_file": "/home/holger/Schreibtisch/manual_route.csv",
+    "route_signature": "b5194e0451161d0ae929b181c8bc7bee359578ac41fd21510171abe0c8c2be24",
+    "current_index": 0,
+    "total_jumps": 8
 }

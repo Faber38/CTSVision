@@ -25,6 +25,49 @@ Unterstützt werden unter anderem Routen aus:
 
 Die geladene Route wird im Hauptfenster angezeigt. Über **„Routen-Info“** können zusätzlich Gesamtstrecke, Sprungzahl, Tritiumbedarf, Fortschritt und das nächste Ziel angezeigt werden.
 
+## Route von Hand planen
+
+Mit **„Route von Hand planen“** kann eine Fleet-Carrier-Route manuell anhand der XYZ-Koordinaten der Elite-Galaxiekarte erstellt werden.
+
+Diese Funktion ist besonders für Reisen in weit entfernte oder noch wenig erkundete Gebiete gedacht. Dort können Systeme existieren, die in externen Routendiensten wie EDD oder Spansh noch nicht bekannt sind und deshalb nicht automatisch für eine Carrier-Route ausgewählt werden können.
+
+Der Routenplaner berechnet deshalb **keine Systemnamen automatisch**. Stattdessen berechnet er jeweils einen theoretischen Punkt in Richtung des gewünschten Ziels. In der Elite-Galaxiekarte wird anschließend in der Nähe dieses Punktes ein tatsächlich vorhandenes System gesucht.
+
+### Orientierung der Koordinaten
+
+Für die Darstellung im manuellen Routenplaner gilt:
+
+- **X** = links / rechts
+- **Z** = unten / oben auf der 2D-Kartenebene
+- **Y** = Schicht bzw. Höhe im 3D-Raum
+
+Man kann sich die Y-Achse wie mehrere X/Z-Kartenebenen vorstellen, die übereinander bzw. untereinander liegen.
+
+### Eine manuelle Route erstellen
+
+1. **Startsystem** und dessen X-, Y- und Z-Koordinaten eintragen.
+2. Die gewünschten **Zielkoordinaten** eintragen.
+3. Die Soll-Sprungweite festlegen. Für einen Carrier mit maximal 500 Lj sind **495 Lj** ein sinnvoller Ausgangswert.
+4. **„Route starten / neu berechnen“** wählen.
+5. CTSVision zeigt den nächsten theoretischen Suchpunkt an.
+6. In der Elite-Galaxiekarte möglichst nahe an diesen Koordinaten ein reales System suchen.
+7. Den **Systemnamen und die tatsächlichen XYZ-Koordinaten** dieses Systems eintragen.
+8. Mit **„Entfernung prüfen“** kontrollieren, ob das System innerhalb der maximalen Carrier-Sprungweite liegt.
+9. Mit **„System übernehmen + weiter“** das System zur Route hinzufügen.
+10. CTSVision berechnet nun vom tatsächlich gewählten System aus den nächsten Suchpunkt.
+
+Dieser Ablauf wird wiederholt, bis die gewünschte Route erstellt ist.
+
+Wichtig ist, immer die **tatsächlichen Koordinaten des gefundenen Systems** einzutragen. Der nächste Suchpunkt wird nicht vom vorherigen theoretischen Sollpunkt, sondern vom real gewählten System aus berechnet. Dadurch bleiben die folgenden Carrier-Sprünge korrekt.
+
+### Route an CTSVision übergeben
+
+Ist die manuelle Route fertig, kann sie mit **„Route an CTSVision übergeben“** als CTSVision-kompatible CSV-Datei gespeichert und direkt als aktuelle Route übernommen werden.
+
+Das Startsystem wird dabei nicht als Sprungziel eingetragen. Der erste Eintrag der erzeugten CTSVision-Route ist das erste System, zu dem der Carrier tatsächlich springen soll.
+
+Vor dem Start der Automatik sollte die erzeugte Route wie gewohnt noch einmal über **„Routen-Info“** kontrolliert werden.
+
 ## Journalordner
 
 CTSVision überwacht das Elite-Dangerous-Journal, um wichtige Ereignisse wie einen erfolgreichen **CarrierJump** zu erkennen.

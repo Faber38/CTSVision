@@ -96,6 +96,40 @@ CTSVision trifft keine unsicheren Entscheidungen.
 
 **Robustheit vor Geschwindigkeit.**
 
+### Version 1.9
+✨ Neu
+- **Integrierte Hilfe hinzugefügt.**
+  CTSVision enthält jetzt eine direkt aus dem Hauptfenster aufrufbare deutschsprachige Hilfe.
+  Sie beschreibt die wichtigsten Funktionen, Einstellungen, Assistenten, Sicherheitsmechanismen
+  und die Bedienung der Routen- und Tankautomatik.
+- **Manueller XYZ-Routenplaner hinzugefügt.**
+  Carrier-Routen können jetzt auch vollständig von Hand anhand der XYZ-Koordinaten
+  der Elite-Galaxiekarte geplant werden.
+  Der Routenplaner ist besonders für weit entfernte oder wenig erforschte Gebiete gedacht,
+  in denen Systeme möglicherweise noch nicht in EDD oder Spansh bekannt sind.
+- **Schrittweise Planung mit realen Systemen.**
+  CTSVision berechnet jeweils einen theoretischen Suchpunkt in Richtung Ziel
+  (standardmäßig 495 Lj). Anschließend wird in der Galaxiekarte ein reales System
+  in der Nähe dieses Punktes gewählt und mit seinen tatsächlichen XYZ-Koordinaten eingetragen.
+  Der nächste Suchpunkt wird immer vom tatsächlich gewählten System aus neu berechnet.
+- **Prüfung der Carrier-Sprungweite.**
+  Vor der Übernahme eines Systems wird kontrolliert, ob die reale Entfernung
+  innerhalb der maximalen Carrier-Sprungweite liegt.
+- **Direkte Übergabe an CTSVision.**
+  Eine fertig geplante manuelle Route kann als CTSVision-kompatible CSV-Datei gespeichert
+  und direkt als aktuelle Route übernommen werden.
+- **„Route fortsetzen“ deutlich verbessert.**
+  Nach einem Abbruch oder unerwarteten Beenden von CTSVision kann jetzt angegeben werden,
+  in welchem Routensystem sich der Carrier tatsächlich befindet.
+  Das ist besonders wichtig, wenn Elite Dangerous einen bereits angeforderten Carrier-Sprung
+  noch ausgeführt hat, CTSVision den zugehörigen `CarrierJump` aber nicht mehr empfangen konnte.
+- **Routenfortschritt manuell korrigierbar.**
+  CTSVision zeigt beim Fortsetzen den gespeicherten Stand, den gewählten aktuellen Standort
+  und das daraus folgende nächste Sprungziel an. Erst nach Bestätigung wird der neue Fortschritt gespeichert.
+- **Manuelle Routenplanung in der Hilfe dokumentiert.**
+  Die integrierte Hilfe beschreibt die Orientierung der XYZ-Koordinaten,
+  den Ablauf der manuellen Planung und die Übergabe der fertigen Route an CTSVision.
+
 ### Version 1.8
 ✨ Neu
 - **Dark Mode** hinzugefügt.

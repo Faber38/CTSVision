@@ -96,6 +96,40 @@ CTSVision does not make uncertain decisions.
 
 **Robustness before speed.**
 
+### Version 1.9
+✨ New
+- **Integrated help added.**
+  CTSVision now includes built-in German help that can be opened directly from the main window.
+  It explains the main functions, settings, assistants, safety mechanisms,
+  and the operation of the route and refueling automation.
+- **Manual XYZ route planner added.**
+  Fleet Carrier routes can now be planned completely by hand using the XYZ coordinates
+  from the Elite Dangerous galaxy map.
+  The planner is especially useful for distant or sparsely explored regions
+  where systems may not yet be known to EDD or Spansh.
+- **Step-by-step planning with real systems.**
+  CTSVision calculates a theoretical search point in the direction of the destination
+  (495 ly by default). A real system near that point is then selected in the galaxy map
+  and entered with its actual XYZ coordinates.
+  The next search point is always recalculated from the system that was really selected.
+- **Carrier jump range validation.**
+  Before a system is accepted, CTSVision checks whether the actual distance
+  is within the configured maximum Fleet Carrier jump range.
+- **Direct handover to CTSVision.**
+  A completed manual route can be saved as a CTSVision-compatible CSV file
+  and loaded directly as the current route.
+- **Improved “Resume Route” function.**
+  After an interruption or unexpected shutdown of CTSVision, the user can now specify
+  the route system where the Carrier is actually located.
+  This is especially useful when Elite Dangerous still completes an already requested Carrier jump
+  after CTSVision has stopped and CTSVision therefore never receives the corresponding `CarrierJump`.
+- **Manual correction of route progress.**
+  When resuming, CTSVision shows the stored progress, the selected current location
+  and the resulting next jump destination. The new progress is only saved after confirmation.
+- **Manual route planning documented in the integrated help.**
+  The help explains XYZ coordinate orientation, the planning workflow
+  and how the finished route is handed over to CTSVision.
+
 ### Version 1.8
 ✨ New
 - **Dark Mode** added.

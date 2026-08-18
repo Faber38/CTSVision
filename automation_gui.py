@@ -27,6 +27,7 @@ from PySide6.QtWidgets import (
     QGridLayout,
     QGroupBox,
     QHBoxLayout,
+    QInputDialog,
     QLabel,
     QLineEdit,
     QMainWindow,
@@ -51,6 +52,7 @@ from mouse_control import (
 from navigator import Navigator
 from route_info_window import RouteInfoWindow
 from route_manager import RouteManager, RouteManagerError
+from manual_route_planner import ManualRoutePlanner
 from settings_manager import (
     load_settings,
     save_settings,
@@ -770,6 +772,7 @@ class AutomationWindow(QMainWindow):
         self.route_manager: RouteManager | None = None
 
         self.route_info_window: RouteInfoWindow | None = None
+        self.manual_route_planner_window: ManualRoutePlanner | None = None
         self.help_window: HelpWindow | None = None
 
         self.vision_wizard_window: VisionWizardWindow | None = None
@@ -1208,10 +1211,22 @@ class AutomationWindow(QMainWindow):
         )
         self.route_info_button.clicked.connect(self.open_route_info)
 
+        self.manual_route_button = QPushButton("🧭  Route von Hand planen")
+        self.manual_route_button.setObjectName("manualRouteButton")
+        self.manual_route_button.setToolTip(
+            "Öffnet den manuellen XYZ-Routenplaner.\n\n"
+            "Damit können Carrier-Routen auch in Gebiete geplant werden, "
+            "deren Systeme noch nicht in EDD oder Spansh bekannt sind.\n\n"
+            "X = links/rechts, Z = oben/unten, Y = Schicht/Höhe."
+        )
+        self.manual_route_button.clicked.connect(self.open_manual_route_planner)
+
         route_layout.addWidget(QLabel("Datei:"), 0, 0)
         route_layout.addWidget(self.route_edit, 0, 1)
         route_layout.addWidget(self.route_button, 0, 2)
         route_layout.addWidget(self.route_info_button, 0, 3)
+        route_layout.addWidget(QLabel("Manuell:"), 1, 0)
+        route_layout.addWidget(self.manual_route_button, 1, 1, 1, 3)
 
         # --------------------------------------------------
         # Journal
@@ -1228,9 +1243,9 @@ class AutomationWindow(QMainWindow):
         )
         self.journal_button.clicked.connect(self.select_journal_directory)
 
-        route_layout.addWidget(QLabel("Journalordner:"), 1, 0)
-        route_layout.addWidget(self.journal_directory_edit, 1, 1, 1, 2)
-        route_layout.addWidget(self.journal_button, 1, 3)
+        route_layout.addWidget(QLabel("Journalordner:"), 2, 0)
+        route_layout.addWidget(self.journal_directory_edit, 2, 1, 1, 2)
+        route_layout.addWidget(self.journal_button, 2, 3)
 
         # --------------------------------------------------
         # Geplanter Start
@@ -1261,9 +1276,9 @@ class AutomationWindow(QMainWindow):
             self._update_scheduled_start_preview
         )
 
-        route_layout.addWidget(self.scheduled_start_checkbox, 2, 0)
-        route_layout.addWidget(self.scheduled_start_edit, 2, 1, 1, 2)
-        route_layout.addWidget(self.scheduled_start_status, 2, 3)
+        route_layout.addWidget(self.scheduled_start_checkbox, 3, 0)
+        route_layout.addWidget(self.scheduled_start_edit, 3, 1, 1, 2)
+        route_layout.addWidget(self.scheduled_start_status, 3, 3)
 
         # --------------------------------------------------
         # Informationen
@@ -1552,10 +1567,14 @@ class AutomationWindow(QMainWindow):
         self.resume_button = QPushButton("↪  Route fortsetzen")
         self.resume_button.setObjectName("secondaryButton")
         self.resume_button.setToolTip(
-            "Aktualisiert die Anzeige der geladenen Route.\n\n"
-            "Der gespeicherte Routenfortschritt bleibt erhalten."
+            "Legt fest, in welchem Routensystem sich der Carrier aktuell befindet.\n\n"
+            "Diese Funktion ist besonders hilfreich, wenn CTSVision beendet wurde, "
+            "nachdem ein Sprung bereits angefordert war, Elite den Sprung aber "
+            "anschließend noch ausgeführt hat.\n\n"
+            "CTSVision setzt den gespeicherten Fortschritt auf das ausgewählte "
+            "Carrier-System und verwendet danach das folgende System als nächstes Ziel."
         )
-        self.resume_button.clicked.connect(self.refresh_route_display)
+        self.resume_button.clicked.connect(self.resume_route)
 
         self.start_button = QPushButton("▶  Automatik starten")
         self.start_button.setObjectName("primaryButton")
@@ -1646,6 +1665,9 @@ class AutomationWindow(QMainWindow):
 
         if self.help_window is not None:
             self.help_window.set_dark_mode(enabled)
+
+        if self.manual_route_planner_window is not None:
+            self.manual_route_planner_window.set_dark_mode(enabled)
 
     def _set_elite_waiting_style(self) -> None:
         if self.dark_mode_enabled:
@@ -2562,6 +2584,69 @@ class AutomationWindow(QMainWindow):
 
         return str(Path.home())
 
+    def open_manual_route_planner(self) -> None:
+        """Öffnet den integrierten manuellen XYZ-Routenplaner."""
+
+        if self.automation_thread is not None:
+            QMessageBox.information(
+                self,
+                "Automatik läuft",
+                "Während die Automatik läuft, kann keine neue manuelle Route geplant werden.",
+            )
+            return
+
+        default_directory = self._get_route_dialog_directory()
+
+        if self.manual_route_planner_window is None:
+            self.manual_route_planner_window = ManualRoutePlanner(
+                parent=self,
+                dark_mode=self.dark_mode_enabled,
+                default_directory=default_directory,
+            )
+            self.manual_route_planner_window.route_created.connect(
+                self._load_manual_route
+            )
+        else:
+            self.manual_route_planner_window.default_directory = Path(default_directory)
+            self.manual_route_planner_window.set_dark_mode(self.dark_mode_enabled)
+
+        self.manual_route_planner_window.show()
+        self.manual_route_planner_window.raise_()
+        self.manual_route_planner_window.activateWindow()
+
+    @Slot(str)
+    def _load_manual_route(self, filename: str) -> None:
+        """Lädt eine vom XYZ-Planer erzeugte CSV direkt in CTSVision."""
+
+        if self.automation_thread is not None:
+            QMessageBox.information(
+                self,
+                "Automatik läuft",
+                "Die Route wurde erstellt, kann während der laufenden Automatik aber nicht geladen werden.",
+            )
+            return
+
+        route_file = Path(filename)
+
+        try:
+            route_manager = RouteManager(route_file)
+        except RouteManagerError as exc:
+            QMessageBox.critical(
+                self,
+                "Manuelle Route konnte nicht geladen werden",
+                str(exc),
+            )
+            self.log(f"Fehler beim Laden der manuellen Route: {exc}")
+            return
+
+        self.route_file = route_file
+        self.route_manager = route_manager
+        self.route_edit.setText(str(route_file))
+        self.settings["last_route"] = str(route_file)
+        save_settings(self.settings)
+        self.log(f"Manuelle XYZ-Route geladen: {route_file.name}")
+        self.refresh_route_display()
+
     def select_route(self) -> None:
 
         if self.automation_thread is not None:
@@ -2762,6 +2847,189 @@ class AutomationWindow(QMainWindow):
         self.tank_wizard_window.show()
         self.tank_wizard_window.raise_()
         self.tank_wizard_window.activateWindow()
+
+    # --------------------------------------------------
+
+    def resume_route(self) -> None:
+        """
+        Setzt den gespeicherten Routenfortschritt anhand des Systems,
+        in dem sich der Carrier aktuell befindet.
+
+        Hintergrund:
+        Wurde CTSVision beendet, nachdem ein Sprung bereits angefordert
+        wurde, kann Elite diesen Sprung trotzdem noch ausführen. In diesem
+        Fall hat CTSVision den zugehörigen CarrierJump eventuell nicht mehr
+        empfangen und kennt den tatsächlich erreichten Routenschritt nicht.
+
+        Der Benutzer wählt deshalb hier bewusst den aktuellen Standort.
+        Das ausgewählte System selbst gilt als bereits erreicht; CTSVision
+        setzt anschließend mit dem darauf folgenden Sprungziel fort.
+        """
+
+        if self.automation_thread is not None:
+            QMessageBox.information(
+                self,
+                "Automatik läuft",
+                (
+                    "Der Routenfortschritt kann während der "
+                    "laufenden Automatik nicht geändert werden."
+                ),
+            )
+            return
+
+        if self.scheduled_start_active:
+            QMessageBox.information(
+                self,
+                "Route ist eingeplant",
+                (
+                    "Der Routenfortschritt kann nicht geändert werden, "
+                    "solange eine Startzeit eingeplant ist."
+                ),
+            )
+            return
+
+        if self.route_manager is None:
+            QMessageBox.information(
+                self,
+                "Keine Route",
+                "Bitte zuerst eine Route auswählen.",
+            )
+            return
+
+        points = self.route_manager.points
+
+        if not points:
+            QMessageBox.information(
+                self,
+                "Keine Routensysteme",
+                "Die geladene Route enthält keine auswählbaren Systeme.",
+            )
+            return
+
+        current_completed = self.route_manager.completed_jumps
+        total_jumps = self.route_manager.total_jumps
+
+        items: list[str] = []
+
+        for index, point in enumerate(points):
+            if index == 0:
+                items.append(
+                    f"00 – {point.system}   [Startsystem]"
+                )
+            else:
+                marker = (
+                    "   [gespeicherter Stand]"
+                    if index == current_completed
+                    else ""
+                )
+                items.append(
+                    f"{index:02d} – {point.system}{marker}"
+                )
+
+        initial_index = max(
+            0,
+            min(
+                current_completed,
+                len(items) - 1,
+            ),
+        )
+
+        selected_text, accepted = QInputDialog.getItem(
+            self,
+            "Route fortsetzen",
+            (
+                "In welchem System befindet sich der Carrier aktuell?\n\n"
+                "Das ausgewählte System gilt als bereits erreicht. "
+                "CTSVision setzt danach mit dem folgenden Routenziel fort."
+            ),
+            items,
+            initial_index,
+            False,
+        )
+
+        if not accepted:
+            return
+
+        try:
+            selected_index = items.index(selected_text)
+        except ValueError:
+            return
+
+        selected_system = points[selected_index].system
+
+        # Da points[0] das Startsystem ist, entspricht der Index des
+        # ausgewählten Systems direkt der Anzahl abgeschlossener Sprünge.
+        completed_jumps = selected_index
+
+        if completed_jumps < total_jumps:
+            next_system = points[selected_index + 1].system
+            next_text = f"Nächstes Sprungziel: {next_system}"
+        else:
+            next_system = None
+            next_text = "Die Route wäre damit vollständig abgeschlossen."
+
+        answer = QMessageBox.question(
+            self,
+            "Routenfortschritt übernehmen",
+            (
+                f"Aktueller Carrier-Standort:\n"
+                f"{selected_system}\n\n"
+                f"CTSVision setzt damit {completed_jumps} von "
+                f"{total_jumps} Sprüngen auf abgeschlossen.\n\n"
+                f"{next_text}\n\n"
+                "Diesen Routenfortschritt übernehmen?"
+            ),
+            QMessageBox.StandardButton.Yes
+            | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+
+        try:
+            self.route_manager.set_progress(
+                completed_jumps
+            )
+        except RouteManagerError as exc:
+            QMessageBox.critical(
+                self,
+                "Routenfortschritt konnte nicht gespeichert werden",
+                str(exc),
+            )
+            self.log(
+                f"Fehler beim Setzen des Routenfortschritts: {exc}"
+            )
+            return
+
+        self.refresh_route_display()
+
+        if next_system is None:
+            self.log(
+                "Routenfortschritt manuell angepasst: "
+                f"Carrier steht in {selected_system}. "
+                "Die Route ist damit abgeschlossen."
+            )
+        else:
+            self.log(
+                "Routenfortschritt manuell angepasst: "
+                f"Carrier steht in {selected_system}. "
+                f"Nächstes Ziel: {next_system}"
+            )
+
+        QMessageBox.information(
+            self,
+            "Route fortsetzen",
+            (
+                "Der Routenfortschritt wurde gespeichert.\n\n"
+                f"Aktueller Standort: {selected_system}\n"
+                + (
+                    f"Nächstes Ziel: {next_system}"
+                    if next_system is not None
+                    else "Route abgeschlossen."
+                )
+            ),
+        )
 
     # --------------------------------------------------
 
@@ -3039,6 +3307,7 @@ class AutomationWindow(QMainWindow):
         self.exit_elite_test_button.setEnabled(not running)
 
         self.route_button.setEnabled(not running)
+        self.manual_route_button.setEnabled(not running)
         self.restart_button.setEnabled(not running)
         self.resume_button.setEnabled(not running)
 
@@ -3333,6 +3602,7 @@ class AutomationWindow(QMainWindow):
         self.start_button.setEnabled(not waiting)
         self.stop_button.setEnabled(waiting)
         self.route_button.setEnabled(not waiting)
+        self.manual_route_button.setEnabled(not waiting)
         self.restart_button.setEnabled(not waiting)
         self.resume_button.setEnabled(not waiting)
         self.vision_wizard_button.setEnabled(not waiting)
@@ -3937,6 +4207,7 @@ class AutomationWindow(QMainWindow):
         self.stop_button.setEnabled(running)
 
         self.route_button.setEnabled(not running)
+        self.manual_route_button.setEnabled(not running)
 
         self.restart_button.setEnabled(not running)
         self.resume_button.setEnabled(not running)
