@@ -35,6 +35,25 @@ def point_towards(start, target, step):
     return tuple(start[i] + (target[i] - start[i]) * f for i in range(3)), move
 
 
+def tritium_usage(distance_ly, used_capacity, tank_before):
+    """
+    Berechnet den Tritiumverbrauch eines Fleet-Carrier-Sprungs.
+
+    Formel:
+        5 + distance * (used_capacity + tank_before + 25000) / 200000
+
+    Das Ergebnis wird wie in bekannten Carrier-Rechnern auf ganze Tonnen
+    gerundet. Die Formel wurde zusätzlich mit realen CTSVision-Messwerten
+    gegengeprüft.
+    """
+    value = 5 + (
+        float(distance_ly)
+        * (float(used_capacity) + float(tank_before) + 25000.0)
+        / 200000.0
+    )
+    return int(round(value))
+
+
 class ManualRoutePlanner(QDialog):
     route_created = Signal(str)
 
@@ -80,6 +99,9 @@ class ManualRoutePlanner(QDialog):
         self.start_name = QLineEdit(); self.start_x = QLineEdit(); self.start_y = QLineEdit(); self.start_z = QLineEdit()
         self.target_x = QLineEdit(); self.target_y = QLineEdit(); self.target_z = QLineEdit()
         self.jump_distance = QLineEdit(str(DEFAULT_JUMP)); self.max_jump = QLineEdit(str(DEFAULT_MAX_JUMP))
+        self.used_capacity = QLineEdit()
+        self.tritium_tank = QLineEdit("1000")
+        self.tritium_market = QLineEdit()
         g.addWidget(QLabel("Startsystem"),0,0); g.addWidget(self.start_name,0,1,1,5)
         g.addWidget(QLabel("Start X ↔"),1,0); g.addWidget(self.start_x,1,1)
         g.addWidget(QLabel("Y Schicht"),1,2); g.addWidget(self.start_y,1,3)
@@ -89,7 +111,20 @@ class ManualRoutePlanner(QDialog):
         g.addWidget(QLabel("Z ↕"),0,11); g.addWidget(self.target_z,0,12)
         g.addWidget(QLabel("Soll-Sprungweite"),1,7); g.addWidget(self.jump_distance,1,8); g.addWidget(QLabel("Lj"),1,9)
         g.addWidget(QLabel("Max. Carrier-Sprung"),2,7); g.addWidget(self.max_jump,2,8); g.addWidget(QLabel("Lj"),2,9)
-        b = QPushButton("Route starten / neu berechnen"); b.clicked.connect(self.start_route); g.addWidget(b,2,0,1,4)
+
+        g.addWidget(QLabel("Carrier-Masse / Used Capacity"),2,10)
+        g.addWidget(self.used_capacity,2,11)
+        g.addWidget(QLabel("t"),2,12)
+
+        g.addWidget(QLabel("Tritium im Tank"),3,7)
+        g.addWidget(self.tritium_tank,3,8)
+        g.addWidget(QLabel("t"),3,9)
+
+        g.addWidget(QLabel("Tritium im Lager"),3,10)
+        g.addWidget(self.tritium_market,3,11)
+        g.addWidget(QLabel("t"),3,12)
+
+        b = QPushButton("Route starten / neu berechnen"); b.clicked.connect(self.start_route); g.addWidget(b,3,0,1,4)
         root.addWidget(box)
 
         box = QGroupBox("2. Nächster Suchpunkt")
@@ -121,14 +156,23 @@ class ManualRoutePlanner(QDialog):
 
         box = QGroupBox("4. Manuelle Route")
         vl = QVBoxLayout(box)
-        self.table=QTableWidget(0,7)
-        self.table.setHorizontalHeaderLabels(["#","System","X ↔","Y Schicht","Z ↕","Sprung","Rest zum Ziel"])
+        self.table=QTableWidget(0,10)
+        self.table.setHorizontalHeaderLabels([
+            "#","System","X ↔","Y Schicht","Z ↕","Sprung",
+            "Tritium","Tank danach","Nachtanken","Rest zum Ziel"
+        ])
         self.table.verticalHeader().setVisible(False)
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.table.horizontalHeader().setStretchLastSection(True)
-        self.table.setColumnWidth(0,40); self.table.setColumnWidth(1,280)
-        vl.addWidget(self.table); root.addWidget(box,1)
+        self.table.setColumnWidth(0,40); self.table.setColumnWidth(1,235)
+        self.table.setColumnWidth(5,90); self.table.setColumnWidth(6,75)
+        self.table.setColumnWidth(7,90); self.table.setColumnWidth(8,95)
+        vl.addWidget(self.table)
+        self.tritium_summary_label = QLabel("Tritiumberechnung: noch keine Route.")
+        self.tritium_summary_label.setWordWrap(True)
+        vl.addWidget(self.tritium_summary_label)
+        root.addWidget(box,1)
 
         buttons=QHBoxLayout()
         for text, fn in [
@@ -140,6 +184,10 @@ class ManualRoutePlanner(QDialog):
         self.export_button=QPushButton("Route an CTSVision übergeben"); self.export_button.clicked.connect(self.export_to_ctsvision)
         buttons.addWidget(self.export_button); root.addLayout(buttons)
         self.status_label=QLabel("Bereit."); root.addWidget(self.status_label)
+
+        # Änderungen an Masse/Tritium sofort in der Routentabelle nachführen.
+        for edit in (self.used_capacity, self.tritium_tank, self.tritium_market):
+            edit.editingFinished.connect(self._refresh)
 
     def set_dark_mode(self, enabled):
         self.dark_mode = enabled
@@ -178,8 +226,14 @@ class ManualRoutePlanner(QDialog):
             start=self._xyz(self.start_x,self.start_y,self.start_z,"Start")
             target=self._xyz(self.target_x,self.target_y,self.target_z,"Ziel")
             jump=self._float(self.jump_distance,"Soll-Sprungweite"); max_jump=self._float(self.max_jump,"Maximaler Sprung")
+            used_capacity=self._float(self.used_capacity,"Carrier-Masse / Used Capacity")
+            tank=self._float(self.tritium_tank,"Tritium im Tank")
+            market=self._float(self.tritium_market,"Tritium im Lager")
             if jump<=0 or max_jump<=0: raise ValueError("Sprungweiten müssen größer als 0 sein.")
             if jump>max_jump: raise ValueError("Soll-Sprungweite darf nicht größer als der maximale Carrier-Sprung sein.")
+            if used_capacity < 0: raise ValueError("Carrier-Masse / Used Capacity darf nicht negativ sein.")
+            if not (0 <= tank <= 1000): raise ValueError("Tritium im Tank muss zwischen 0 und 1000 t liegen.")
+            if market < 0: raise ValueError("Tritium im Lager darf nicht negativ sein.")
             if distance(start,target)==0: raise ValueError("Start und Ziel sind identisch.")
         except ValueError as exc:
             QMessageBox.critical(self,APP_NAME,str(exc)); return
@@ -216,27 +270,183 @@ class ManualRoutePlanner(QDialog):
         for e in (self.found_name,self.found_x,self.found_y,self.found_z): e.clear()
         self.check_result.clear()
 
+    def _simulate_tritium(self):
+        """
+        Simuliert den Tritiumverbrauch über die aktuell geplante Route.
+
+        Used Capacity bleibt zwischen Sprüngen gleich. Erst wenn Tritium aus
+        dem Carrier-Lager in den Tank übertragen wird, sinkt Used Capacity
+        um genau diese Menge. Da der Tank um dieselbe Menge steigt, bleibt
+        die Summe Used Capacity + Tank durch das reine Nachtanken zunächst
+        unverändert.
+        """
+        if not self.route:
+            return [], None
+
+        try:
+            used_capacity = self._float(
+                self.used_capacity,
+                "Carrier-Masse / Used Capacity",
+            )
+            tank = self._float(
+                self.tritium_tank,
+                "Tritium im Tank",
+            )
+            market = self._float(
+                self.tritium_market,
+                "Tritium im Lager",
+            )
+        except ValueError:
+            return [], None
+
+        result = []
+        total_used = 0
+        warning = None
+
+        # Startsystem
+        result.append({
+            "fuel_used": 0,
+            "tank_after": int(round(tank)),
+            "market_after": int(round(market)),
+            "restock": 0,
+            "used_capacity": used_capacity,
+        })
+
+        for idx, entry in enumerate(self.route[1:], start=1):
+            jump_distance = float(entry["jump"])
+            restock = 0
+
+            # Zuerst den Verbrauch mit dem aktuellen Zustand bestimmen.
+            needed = tritium_usage(
+                jump_distance,
+                used_capacity,
+                tank,
+            )
+
+            # Falls der Tank nicht reicht, wird automatisch bis maximal
+            # 1000 t aus dem Lager nachgefüllt.
+            if tank < needed:
+                desired = 1000.0 - tank
+                restock = min(desired, market)
+
+                tank += restock
+                market -= restock
+                used_capacity -= restock
+
+                needed = tritium_usage(
+                    jump_distance,
+                    used_capacity,
+                    tank,
+                )
+
+            if tank < needed:
+                warning = (
+                    f"Ab Sprung {idx} reicht das verfügbare Tritium nicht mehr aus. "
+                    f"Benötigt: {needed} t, Tank: {tank:.0f} t, Lager: {market:.0f} t."
+                )
+                result.append({
+                    "fuel_used": needed,
+                    "tank_after": max(0, int(round(tank))),
+                    "market_after": int(round(market)),
+                    "restock": int(round(restock)),
+                    "used_capacity": used_capacity,
+                    "insufficient": True,
+                })
+                break
+
+            tank -= needed
+            total_used += needed
+
+            result.append({
+                "fuel_used": needed,
+                "tank_after": int(round(tank)),
+                "market_after": int(round(market)),
+                "restock": int(round(restock)),
+                "used_capacity": used_capacity,
+                "insufficient": False,
+            })
+
+        summary = {
+            "total_used": total_used,
+            "tank_after": int(round(tank)),
+            "market_after": int(round(market)),
+            "used_capacity_after": int(round(used_capacity)),
+            "warning": warning,
+        }
+
+        return result, summary
+
     def _refresh(self):
         self.table.setRowCount(0)
         if not self.route or self.target is None:
             self.current_system_label.setText("—"); self.remaining_label.setText("—")
             for e in (self.next_x,self.next_y,self.next_z): e.setText("—")
-            self.info_label.setText("Noch keine Route gestartet."); self.add_button.setEnabled(False); self.export_button.setEnabled(False); return
+            self.info_label.setText("Noch keine Route gestartet.")
+            self.tritium_summary_label.setText("Tritiumberechnung: noch keine Route.")
+            self.add_button.setEnabled(False); self.export_button.setEnabled(False); return
         self._calculate_next(); cur=self.current_point(); rem=distance(cur,self.target)
         self.current_system_label.setText(str(self.route[-1]["name"])); self.remaining_label.setText(f"{rem:.3f} Lj")
         if self.next_point is not None:
             self.next_x.setText(f"{self.next_point[0]:.3f}"); self.next_y.setText(f"{self.next_point[1]:.3f}"); self.next_z.setText(f"{self.next_point[2]:.3f}")
             step=distance(cur,self.next_point)
             self.info_label.setText(f"Suche zuerst X/Z auf der Kartenebene, dann Y als Schicht. Theoretischer nächster Schritt: {step:.3f} Lj.")
+        tritium_rows, tritium_summary = self._simulate_tritium()
+
         for idx,e in enumerate(self.route,1):
             p=(float(e["x"]),float(e["y"]),float(e["z"])); remaining=distance(p,self.target)
+
+            tritium = tritium_rows[idx-1] if idx-1 < len(tritium_rows) else None
+
+            if tritium is None:
+                fuel_text = "—"
+                tank_text = "—"
+                restock_text = "—"
+            else:
+                fuel_text = "Start" if idx == 1 else f"{tritium['fuel_used']} t"
+                tank_text = f"{tritium['tank_after']} t"
+                restock_amount = int(tritium.get("restock", 0))
+                restock_text = f"{restock_amount} t" if restock_amount > 0 else "—"
+
             row=self.table.rowCount(); self.table.insertRow(row)
-            vals=[str(idx),str(e["name"]),f"{float(e['x']):.3f}",f"{float(e['y']):.3f}",f"{float(e['z']):.3f}",f"{float(e['jump']):.3f} Lj",f"{remaining:.3f} Lj"]
+            vals=[
+                str(idx),str(e["name"]),
+                f"{float(e['x']):.3f}",f"{float(e['y']):.3f}",f"{float(e['z']):.3f}",
+                f"{float(e['jump']):.3f} Lj",
+                fuel_text,tank_text,restock_text,
+                f"{remaining:.3f} Lj"
+            ]
             for c,v in enumerate(vals): self.table.setItem(row,c,QTableWidgetItem(v))
+
+        if tritium_summary is None:
+            self.tritium_summary_label.setText(
+                "Tritiumberechnung: Bitte Carrier-Masse, Tank und Lager vollständig eingeben."
+            )
+        else:
+            summary_text = (
+                f"Geschätzter Tritiumverbrauch: {tritium_summary['total_used']} t   |   "
+                f"Tank nach Route: {tritium_summary['tank_after']} t   |   "
+                f"Tritium im Lager: {tritium_summary['market_after']} t   |   "
+                f"Used Capacity danach: {tritium_summary['used_capacity_after']} t"
+            )
+            if tritium_summary["warning"]:
+                summary_text += "\n⚠ " + str(tritium_summary["warning"])
+            self.tritium_summary_label.setText(summary_text)
+
         self.add_button.setEnabled(True); self.export_button.setEnabled(len(self.route)>=2)
 
     def project_data(self):
-        return {"app":APP_NAME,"version":1,"saved_at":datetime.now().isoformat(timespec="seconds"),"target":list(self.target) if self.target else None,"jump_distance":self.jump_distance.text(),"max_jump":self.max_jump.text(),"route":self.route}
+        return {
+            "app":APP_NAME,
+            "version":2,
+            "saved_at":datetime.now().isoformat(timespec="seconds"),
+            "target":list(self.target) if self.target else None,
+            "jump_distance":self.jump_distance.text(),
+            "max_jump":self.max_jump.text(),
+            "used_capacity":self.used_capacity.text(),
+            "tritium_tank":self.tritium_tank.text(),
+            "tritium_market":self.tritium_market.text(),
+            "route":self.route,
+        }
 
     def _autosave(self):
         if not self.route: return
@@ -256,6 +466,9 @@ class ManualRoutePlanner(QDialog):
         try:
             data=json.loads(Path(filename).read_text(encoding="utf-8")); self.route=data["route"]; self.target=tuple(map(float,data["target"])); self.project_path=Path(filename)
             self.jump_distance.setText(str(data.get("jump_distance",DEFAULT_JUMP))); self.max_jump.setText(str(data.get("max_jump",DEFAULT_MAX_JUMP)))
+            self.used_capacity.setText(str(data.get("used_capacity","")))
+            self.tritium_tank.setText(str(data.get("tritium_tank","1000")))
+            self.tritium_market.setText(str(data.get("tritium_market","")))
             first=self.route[0]; self.start_name.setText(str(first["name"])); self.start_x.setText(str(first["x"])); self.start_y.setText(str(first["y"])); self.start_z.setText(str(first["z"]))
             self.target_x.setText(str(self.target[0])); self.target_y.setText(str(self.target[1])); self.target_z.setText(str(self.target[2])); self._clear_found(); self._refresh()
         except Exception as exc: QMessageBox.critical(self,APP_NAME,f"Projekt konnte nicht geladen werden.\n\n{exc}")
@@ -285,22 +498,49 @@ class ManualRoutePlanner(QDialog):
                 #
                 # Deshalb wird die komplette manuelle Route exportiert,
                 # einschließlich self.route[0].
+                tritium_rows, tritium_summary = self._simulate_tritium()
+
+                if tritium_summary is None:
+                    raise ValueError(
+                        "Carrier-Masse, Tritium im Tank und Tritium im Lager "
+                        "müssen für den Export vollständig angegeben werden."
+                    )
+
+                if tritium_summary.get("warning"):
+                    answer = QMessageBox.question(
+                        self,
+                        APP_NAME,
+                        "Die Tritiumsimulation meldet:\n\n"
+                        + str(tritium_summary["warning"])
+                        + "\n\nRoute trotzdem exportieren?",
+                        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                        QMessageBox.StandardButton.No,
+                    )
+                    if answer != QMessageBox.StandardButton.Yes:
+                        return
+
                 for idx,e in enumerate(self.route):
                     p=(float(e["x"]),float(e["y"]),float(e["z"]))
                     remaining=distance(p,self.target)
 
                     jump_distance = 0.0 if idx == 0 else float(e["jump"])
+                    tri = tritium_rows[idx] if idx < len(tritium_rows) else None
+
+                    tank_after = tri["tank_after"] if tri else ""
+                    market_after = tri["market_after"] if tri else ""
+                    fuel_used = tri["fuel_used"] if (tri and idx > 0) else ""
+                    restock = "Yes" if tri and int(tri.get("restock", 0)) > 0 else "No"
 
                     w.writerow([
                         str(e["name"]),
                         repr(jump_distance),
                         repr(float(remaining)),
-                        "",
-                        "",
-                        "",
+                        tank_after,
+                        market_after,
+                        fuel_used,
                         "No",
                         "No",
-                        "No",
+                        restock,
                     ])
 
             self.route_created.emit(str(route_path))
