@@ -89,6 +89,7 @@ Good reference image quality is essential for reliable image recognition.
 - Avoid stars, nebulae, planets or other dynamic backgrounds.
 - Create new reference images after changing the screen resolution or UI scaling.
 - Test the generated reference images afterwards with the Vision Wizard.
+- For automatic refueling, it is recommended to always use **the same ship** whenever possible. A ship with **the largest possible cargo capacity** is preferable, as menu positions may vary slightly between different ship types.
 
 ## Project Philosophy
 

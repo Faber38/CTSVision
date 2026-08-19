@@ -89,6 +89,7 @@ Tipp: Beim Erstellen der Referenzbilder können die Koordinatenfelder im Vision 
 - Sterne, Nebel, Planeten oder andere dynamische Hintergründe vermeiden.
 - Nach Änderungen der Bildschirmauflösung oder UI-Skalierung neue Referenzbilder erstellen.
 - Die erzeugten Referenzbilder anschließend mit dem Vision Wizard testen.
+- Für das automatische Nachtanken sollte möglichst immer **dasselbe Schiff** verwendet werden. Empfehlenswert ist ein Schiff mit **möglichst großem Laderaum**, da die Positionen der Menüs je nach Schiffstyp leicht unterschiedlich sein können.
 
 ## Projektphilosophie
 
