@@ -7,6 +7,8 @@ from datetime import datetime
 from pathlib import Path
 
 from PySide6.QtCore import Qt, Signal
+from app_paths import CARRIER_HISTORY_FILE
+
 from PySide6.QtWidgets import (
     QDialog, QFileDialog, QGridLayout, QGroupBox, QHBoxLayout, QLabel,
     QLineEdit, QMessageBox, QPushButton, QTableWidget, QTableWidgetItem,
@@ -16,6 +18,8 @@ from PySide6.QtWidgets import (
 APP_NAME = "CTSVision – Manueller XYZ-Routenplaner"
 DEFAULT_JUMP = 495.0
 DEFAULT_MAX_JUMP = 500.0
+MIN_HISTORY_ENTRIES_FOR_CALIBRATION = 5
+RECOMMENDED_HISTORY_ENTRIES_FOR_CALIBRATION = 10
 CTSV_HEADERS = [
     "System Name", "Distance", "Distance Remaining", "Tritium in tank",
     "Tritium in market", "Fuel Used", "Icy Ring", "Pristine", "Restock Tritium",
@@ -65,6 +69,12 @@ class ManualRoutePlanner(QDialog):
         self.target = None
         self.next_point = None
         self.project_path = None
+
+        # Kalibrierung der Verbrauchsformel aus der Carrier-Historie.
+        self.history_calibration_enabled = False
+        self.history_calibration_factor = 1.0
+        self.history_calibration_count = 0
+        self.history_average_percent_deviation = 0.0
 
         self.setWindowTitle(APP_NAME)
         self.resize(1040, 760)
@@ -124,7 +134,29 @@ class ManualRoutePlanner(QDialog):
         g.addWidget(self.tritium_market,3,11)
         g.addWidget(QLabel("t"),3,12)
 
-        b = QPushButton("Route starten / neu berechnen"); b.clicked.connect(self.start_route); g.addWidget(b,3,0,1,4)
+        b = QPushButton("Route starten / neu berechnen")
+        b.clicked.connect(self.start_route)
+        g.addWidget(b,3,0,1,4)
+
+        self.history_calibration_button = QPushButton(
+            "Verbrauchswerte aus Historie übernehmen"
+        )
+        self.history_calibration_button.setToolTip(
+            "Wertet die echten CTSVision-Verbrauchsmessungen aus der "
+            "Carrier-Historie aus und kalibriert damit die Verbrauchsprognose.\n\n"
+            f"Mindestens {MIN_HISTORY_ENTRIES_FOR_CALIBRATION} gültige Messungen "
+            f"werden benötigt; ab {RECOMMENDED_HISTORY_ENTRIES_FOR_CALIBRATION} "
+            "Messungen wird die Kalibrierung empfohlen."
+        )
+        self.history_calibration_button.clicked.connect(
+            self.apply_history_calibration
+        )
+        g.addWidget(self.history_calibration_button,4,0,1,4)
+
+        self.history_calibration_label = QLabel("Verbrauchsberechnung: Standardformel")
+        self.history_calibration_label.setWordWrap(True)
+        g.addWidget(self.history_calibration_label,4,4,1,9)
+
         root.addWidget(box)
 
         box = QGroupBox("2. Nächster Suchpunkt")
@@ -270,6 +302,204 @@ class ManualRoutePlanner(QDialog):
         for e in (self.found_name,self.found_x,self.found_y,self.found_z): e.clear()
         self.check_result.clear()
 
+    def _read_history_calibration(self):
+        """
+        Liest gültige Messungen aus der Carrier-Historie und berechnet
+        einen globalen Korrekturfaktor für die bestehende Verbrauchsformel.
+
+        Verwendet werden nur Datensätze mit:
+            - realem IST-Verbrauch > 0
+            - geplantem Verbrauch > 0
+
+        Faktor:
+            Summe(IST) / Summe(Plan)
+
+        Die gewichtete Berechnung über Gesamtsummen verhindert, dass
+        sehr kleine Sprünge denselben Einfluss bekommen wie lange Sprünge.
+        """
+
+        path = Path(CARRIER_HISTORY_FILE)
+
+        if not path.exists():
+            return None
+
+        valid = []
+
+        try:
+            with path.open("r", encoding="utf-8", newline="") as handle:
+                reader = csv.DictReader(handle, delimiter=";")
+
+                for row in reader:
+                    try:
+                        actual = float(
+                            str(row.get("Verbrauch IST t", ""))
+                            .strip()
+                            .replace(",", ".")
+                        )
+                        planned = float(
+                            str(row.get("Verbrauch geplant t", ""))
+                            .strip()
+                            .replace(",", ".")
+                        )
+                    except ValueError:
+                        continue
+
+                    if actual <= 0 or planned <= 0:
+                        continue
+
+                    valid.append((actual, planned))
+
+        except Exception:
+            return None
+
+        if not valid:
+            return {
+                "count": 0,
+                "factor": 1.0,
+                "average_percent_deviation": 0.0,
+            }
+
+        total_actual = sum(item[0] for item in valid)
+        total_planned = sum(item[1] for item in valid)
+
+        if total_planned <= 0:
+            factor = 1.0
+        else:
+            factor = total_actual / total_planned
+
+        percent_deviations = [
+            ((actual - planned) / planned) * 100.0
+            for actual, planned in valid
+        ]
+
+        average_percent_deviation = (
+            sum(percent_deviations) / len(percent_deviations)
+            if percent_deviations
+            else 0.0
+        )
+
+        return {
+            "count": len(valid),
+            "factor": factor,
+            "average_percent_deviation": average_percent_deviation,
+        }
+
+    def apply_history_calibration(self):
+        """Übernimmt die CTSVision-Historie als Korrektur der Verbrauchsprognose."""
+
+        calibration = self._read_history_calibration()
+
+        if calibration is None:
+            QMessageBox.information(
+                self,
+                APP_NAME,
+                "Die Carrier-Historie konnte nicht gelesen werden.",
+            )
+            return
+
+        count = int(calibration["count"])
+
+        if count < MIN_HISTORY_ENTRIES_FOR_CALIBRATION:
+            QMessageBox.information(
+                self,
+                APP_NAME,
+                (
+                    f"Es wurden nur {count} gültige Verbrauchsmessungen gefunden.\\n\\n"
+                    f"Für die Kalibrierung werden mindestens "
+                    f"{MIN_HISTORY_ENTRIES_FOR_CALIBRATION} Messungen benötigt.\\n"
+                    f"Ab {RECOMMENDED_HISTORY_ENTRIES_FOR_CALIBRATION} Messungen "
+                    "wird die Auswertung deutlich aussagekräftiger."
+                ),
+            )
+            return
+
+        factor = float(calibration["factor"])
+        average_deviation = float(
+            calibration["average_percent_deviation"]
+        )
+
+        confidence_note = (
+            "Die Mindestanzahl ist erreicht."
+            if count < RECOMMENDED_HISTORY_ENTRIES_FOR_CALIBRATION
+            else "Die empfohlene Mindestmenge an Messwerten ist erreicht."
+        )
+
+        answer = QMessageBox.question(
+            self,
+            APP_NAME,
+            (
+                f"{count} gültige CTSVision-Verbrauchsmessungen gefunden.\\n\\n"
+                f"Kalibrierfaktor: {factor:.4f}\\n"
+                f"Ø Abweichung IST zu bisheriger Prognose: "
+                f"{average_deviation:+.2f} %\\n\\n"
+                f"{confidence_note}\\n\\n"
+                "Diese Messwerte für die Verbrauchsprognose verwenden?"
+            ),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.Yes,
+        )
+
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+
+        self.history_calibration_enabled = True
+        self.history_calibration_factor = factor
+        self.history_calibration_count = count
+        self.history_average_percent_deviation = average_deviation
+
+        self.history_calibration_label.setText(
+            "Verbrauchsberechnung: "
+            f"CTSVision-Historie kalibriert · {count} Messungen · "
+            f"Faktor {factor:.4f}"
+        )
+
+        self.history_calibration_button.setText(
+            "Historien-Kalibrierung aktualisieren"
+        )
+
+        self._refresh()
+
+        QMessageBox.information(
+            self,
+            APP_NAME,
+            (
+                "Die Verbrauchsprognose verwendet jetzt die "
+                "CTSVision-Historie als Korrektur.\\n\\n"
+                "Die ursprüngliche Fleet-Carrier-Formel bleibt erhalten "
+                "und wird lediglich mit dem ermittelten Faktor angepasst."
+            ),
+        )
+
+    def _estimated_tritium_usage(
+        self,
+        distance_ly,
+        used_capacity,
+        tank_before,
+    ):
+        """
+        Verbrauchsberechnung des Routenplaners.
+
+        Ohne Kalibrierung:
+            unveränderte Standardformel.
+
+        Mit Kalibrierung:
+            Standardformel * Historien-Korrekturfaktor.
+        """
+
+        base = tritium_usage(
+            distance_ly,
+            used_capacity,
+            tank_before,
+        )
+
+        if not self.history_calibration_enabled:
+            return base
+
+        return max(
+            1,
+            int(round(base * self.history_calibration_factor)),
+        )
+
     def _simulate_tritium(self):
         """
         Simuliert den Tritiumverbrauch über die aktuell geplante Route.
@@ -317,7 +547,7 @@ class ManualRoutePlanner(QDialog):
             restock = 0
 
             # Zuerst den Verbrauch mit dem aktuellen Zustand bestimmen.
-            needed = tritium_usage(
+            needed = self._estimated_tritium_usage(
                 jump_distance,
                 used_capacity,
                 tank,
@@ -333,7 +563,7 @@ class ManualRoutePlanner(QDialog):
                 market -= restock
                 used_capacity -= restock
 
-                needed = tritium_usage(
+                needed = self._estimated_tritium_usage(
                     jump_distance,
                     used_capacity,
                     tank,
@@ -422,11 +652,19 @@ class ManualRoutePlanner(QDialog):
                 "Tritiumberechnung: Bitte Carrier-Masse, Tank und Lager vollständig eingeben."
             )
         else:
+            calculation_source = (
+                f"Historie ({self.history_calibration_count} Messungen, "
+                f"Faktor {self.history_calibration_factor:.4f})"
+                if self.history_calibration_enabled
+                else "Standardformel"
+            )
+
             summary_text = (
                 f"Geschätzter Tritiumverbrauch: {tritium_summary['total_used']} t   |   "
                 f"Tank nach Route: {tritium_summary['tank_after']} t   |   "
                 f"Tritium im Lager: {tritium_summary['market_after']} t   |   "
-                f"Used Capacity danach: {tritium_summary['used_capacity_after']} t"
+                f"Used Capacity danach: {tritium_summary['used_capacity_after']} t\n"
+                f"Berechnungsbasis: {calculation_source}"
             )
             if tritium_summary["warning"]:
                 summary_text += "\n⚠ " + str(tritium_summary["warning"])
@@ -445,6 +683,10 @@ class ManualRoutePlanner(QDialog):
             "used_capacity":self.used_capacity.text(),
             "tritium_tank":self.tritium_tank.text(),
             "tritium_market":self.tritium_market.text(),
+            "history_calibration_enabled": self.history_calibration_enabled,
+            "history_calibration_factor": self.history_calibration_factor,
+            "history_calibration_count": self.history_calibration_count,
+            "history_average_percent_deviation": self.history_average_percent_deviation,
             "route":self.route,
         }
 
@@ -469,6 +711,49 @@ class ManualRoutePlanner(QDialog):
             self.used_capacity.setText(str(data.get("used_capacity","")))
             self.tritium_tank.setText(str(data.get("tritium_tank","1000")))
             self.tritium_market.setText(str(data.get("tritium_market","")))
+
+            self.history_calibration_enabled = bool(
+                data.get("history_calibration_enabled", False)
+            )
+            try:
+                self.history_calibration_factor = float(
+                    data.get("history_calibration_factor", 1.0)
+                )
+            except (TypeError, ValueError):
+                self.history_calibration_factor = 1.0
+
+            try:
+                self.history_calibration_count = int(
+                    data.get("history_calibration_count", 0)
+                )
+            except (TypeError, ValueError):
+                self.history_calibration_count = 0
+
+            try:
+                self.history_average_percent_deviation = float(
+                    data.get("history_average_percent_deviation", 0.0)
+                )
+            except (TypeError, ValueError):
+                self.history_average_percent_deviation = 0.0
+
+            if self.history_calibration_enabled:
+                self.history_calibration_label.setText(
+                    "Verbrauchsberechnung: "
+                    f"CTSVision-Historie kalibriert · "
+                    f"{self.history_calibration_count} Messungen · "
+                    f"Faktor {self.history_calibration_factor:.4f}"
+                )
+                self.history_calibration_button.setText(
+                    "Historien-Kalibrierung aktualisieren"
+                )
+            else:
+                self.history_calibration_label.setText(
+                    "Verbrauchsberechnung: Standardformel"
+                )
+                self.history_calibration_button.setText(
+                    "Verbrauchswerte aus Historie übernehmen"
+                )
+
             first=self.route[0]; self.start_name.setText(str(first["name"])); self.start_x.setText(str(first["x"])); self.start_y.setText(str(first["y"])); self.start_z.setText(str(first["z"]))
             self.target_x.setText(str(self.target[0])); self.target_y.setText(str(self.target[1])); self.target_z.setText(str(self.target[2])); self._clear_found(); self._refresh()
         except Exception as exc: QMessageBox.critical(self,APP_NAME,f"Projekt konnte nicht geladen werden.\n\n{exc}")

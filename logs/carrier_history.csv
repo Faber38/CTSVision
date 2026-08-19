@@ -1,0 +1,3 @@
+Zeit;Route;Sprung;Von System;Nach System;Distanz Lj;Verbrauch geplant t;Used Capacity vor Sprung t;Capacity Maximum t;Tank vor Sprung t;Tank nach Sprung t;Tank Maximum t;Verbrauch IST t;Abweichung t;Nachgetankt nach Sprung;Ermitteltes Nachtanken vor Sprung t;Tank OCR Messungen
+2026-08-19T20:36:10+02:00;/home/holger/Schreibtisch/route.csv;1;Plio Aihm XG-O c6-45;Plio Aihm UC-V d2-159;109.900;28;23837;25000;1000;975;1000;25;-3;Nein;;1
+2026-08-19T21:14:08+02:00;/home/holger/Schreibtisch/route.csv;1;Plio Aihm UC-V d2-159;Plio Aihm JZ-R c4-12;79.700;24;23837;25000;975;950;1000;25;1;Nein;;1

@@ -48,7 +48,8 @@ class TankController:
         7. Carrier-Tankfüllstand per OCR lesen
         8. Tankfüllstand mit dem GUI-Schwellenwert vergleichen
 
-    Tritiumspende und Schiffstransfer werden anschließend ergänzt.
+    Die Tankmessung erfolgt immer. Tritium wird nur übertragen,
+    wenn allow_refuel=True gesetzt ist.
     """
 
     TANK_LEVEL_REFERENCE = "ocr_tank_fuel_level"
@@ -63,12 +64,14 @@ class TankController:
         press_key: Callable[..., None],
         log_message: Callable[[str], None] | None = None,
         status_changed: Callable[[TankStatus], None] | None = None,
+        allow_refuel: bool = True,
     ) -> None:
         self.menu_controller = menu_controller
         self.navigator = navigator
         self.press_key = press_key
         self.log_message = log_message or print
         self.status_changed = status_changed
+        self.allow_refuel = bool(allow_refuel)
 
         self.status = TankStatus.IDLE
 
@@ -83,6 +86,15 @@ class TankController:
         # PaddleOCR wird erst dann geladen, wenn es tatsächlich
         # für die Tankprüfung benötigt wird.
         self.ocr_engine: PaddleEngine | None = None
+
+        # Ergebniswerte des aktuellen Tanklaufs.
+        # Diese Werte werden von automation_gui.py verwendet, damit die
+        # echten OCR-Messwerte später zentral protokolliert werden können.
+        self.first_tank_level: int | None = None
+        self.last_tank_level: int | None = None
+        self.tank_capacity: int | None = None
+        self.refuel_performed = False
+        self.tank_read_count = 0
 
     def _log(self, text: str) -> None:
         """Gibt eine Statusmeldung aus."""
@@ -1396,6 +1408,10 @@ class TankController:
 
         self._log("TankController: Tritium wurde erfolgreich an den Carrier gespendet.")
 
+        # Für die spätere Historie merken, dass in diesem Tanklauf
+        # tatsächlich Tritium an den Carrier übertragen wurde.
+        self.refuel_performed = True
+
         self._log("TankController: BACKSPACE wird gedrückt.")
 
         self.press_key(
@@ -1466,6 +1482,16 @@ class TankController:
 
         current, maximum = self._parse_tank_level(result.text)
 
+        # Den echten OCR-Wert für den übergeordneten Automatik-Worker merken.
+        # first_tank_level = erster gemessener Zustand dieses Tanklaufs
+        # last_tank_level  = letzter gemessener Zustand dieses Tanklaufs
+        if self.first_tank_level is None:
+            self.first_tank_level = current
+
+        self.last_tank_level = current
+        self.tank_capacity = maximum
+        self.tank_read_count += 1
+
         percent = current / maximum * 100.0
 
         # Laut GUI-Tooltip wird erst unterhalb des
@@ -1514,6 +1540,13 @@ class TankController:
 
         self._set_status(TankStatus.RUNNING)
 
+        # Ergebniswerte gelten immer nur für genau diesen Tanklauf.
+        self.first_tank_level = None
+        self.last_tank_level = None
+        self.tank_capacity = None
+        self.refuel_performed = False
+        self.tank_read_count = 0
+
         try:
             self._log("--------------------------------")
             self._log("TankController: Testlauf wird gestartet.")
@@ -1525,7 +1558,26 @@ class TankController:
 
             _, _, _, needs_refuel = self.check_carrier_tank()
 
-            if needs_refuel:
+            if needs_refuel and not self.allow_refuel:
+                self._log(
+                    "TankController: Tankfüllstand liegt unter dem Schwellenwert, "
+                    "aber automatisches Betanken ist deaktiviert."
+                )
+                self._log(
+                    "TankController: Der Tankstand wurde für die Carrier-Historie "
+                    "erfasst. Es wird kein Tritium übertragen."
+                )
+                self._log(
+                    "TankController: Tritiumdepot wird mit BACKSPACE verlassen."
+                )
+                self.press_key(
+                    "backspace",
+                    hold_time=0.20,
+                    after_delay=1.00,
+                )
+                self._log("TankController: Tritiumdepot wurde verlassen.")
+
+            elif needs_refuel:
 
                 self._log("TankController: Nachtanken erforderlich.")
 

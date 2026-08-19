@@ -38,3 +38,6 @@ NAVIGATION_DIR = APP_DIR / "navigation"
 NAVIGATION_FILE = NAVIGATION_DIR / "navigation.json"
 
 DEBUG_DIR = APP_DIR / "debug"
+
+LOGS_DIR = APP_DIR / "logs"
+CARRIER_HISTORY_FILE = LOGS_DIR / "carrier_history.csv"

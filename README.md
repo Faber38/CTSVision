@@ -97,6 +97,39 @@ CTSVision does not make uncertain decisions.
 
 **Robustness before speed.**
 
+### Version 1.9.1
+✨ New
+- **Carrier and Tritium history added.**
+  CTSVision now permanently records successful Fleet Carrier jumps in a dedicated history.
+  Stored values include origin and destination system, jump distance, Carrier mass / Used Capacity,
+  tank level before and after the jump, planned and actual Tritium consumption, and the deviation.
+- **Carrier mass / Used Capacity via OCR.**
+  Before opening the galaxy map, CTSVision automatically reads the current Carrier capacity from
+  Carrier Management and uses the value for consumption analysis.
+- **Tank measurement now always runs for the history.**
+  The Tritium tank is checked by OCR before the first route jump and after every `CarrierJump`,
+  regardless of whether automatic refueling is enabled.
+- **Automatic refueling separated from tank measurement.**
+  The option is now called **“Automatically refuel Carrier when required”**.
+  When disabled, the tank level is still recorded for the history, but no Tritium is transferred.
+- **New “Carrier History” window.**
+  Recorded measurements can be viewed directly in CTSVision in a structured table with totals,
+  averages, and consumption deviations.
+- **Jump details by mouse click.**
+  Clicking a history row opens a separate detail window with all stored raw values for that jump.
+- **History backup and restore.**
+  The complete Carrier history can be backed up and restored later.
+  Before restoring, the currently existing history is automatically backed up as an additional safeguard.
+- **Excel export added.**
+  Carrier history can be exported as a formatted `.xlsx` file for Excel or LibreOffice.
+- **Safe history deletion.**
+  Deleting all recorded measurements requires two consecutive confirmation dialogs.
+- **Manual route planner history calibration.**
+  The XYZ route planner can evaluate real CTSVision consumption measurements from the Carrier history
+  and use them to calibrate the existing Tritium prediction.
+  At least 5 valid measurements are required; calibration is recommended from 10 measurements onward.
+  The original consumption formula remains the underlying baseline.
+
 ### Version 1.9
 ✨ New
 - **Integrated help added.**

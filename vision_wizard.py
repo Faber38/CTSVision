@@ -495,6 +495,33 @@ class VisionWizardWindow(QMainWindow):
                 }
             )
 
+        # OCR-Bereich für die aktuelle Carrier-Kapazität / Used Capacity.
+        # Der gespeicherte Bildausschnitt dient nur zur Kontrolle; für den
+        # späteren Betrieb werden hauptsächlich X/Y/Breite/Höhe verwendet.
+        capacity_reference_name = "ocr_carrier_capacity"
+
+        if not any(
+            entry.get("name") == capacity_reference_name
+            for entry in self.reference_catalog
+        ):
+            self.reference_catalog.append(
+                {
+                    "name": capacity_reference_name,
+                    "title": "Carrier-Kapazität / Masse",
+                    "group": "Carrier – OCR",
+                    "filename": "ocr_carrier_capacity.png",
+                    "template": "assets/templates/ocr_carrier_capacity.png",
+                    "description": (
+                        "Im Carrier-Management oben rechts den Bereich mit der "
+                        "Kapazitätsanzeige möglichst knapp markieren. Ideal ist "
+                        "der Ausschnitt mit dem Zahlenwert wie "
+                        "„23837 / 25000 EINHEITEN“. "
+                        "Dieser Bereich wird später vor jedem Sprung per OCR "
+                        "gelesen und für die Tritium-Verbrauchsauswertung verwendet."
+                    ),
+                }
+            )
+
         self.catalog_by_name = {
             entry["name"]: entry for entry in self.reference_catalog
         }
@@ -848,6 +875,20 @@ class VisionWizardWindow(QMainWindow):
             description or ("Keine zusätzliche Beschreibung " "vorhanden.")
         )
 
+        is_ocr_area = name.startswith("ocr_")
+
+        if is_ocr_area:
+            self.capture_button.setText("OCR-Bereich speichern")
+            self.compare_button.setEnabled(False)
+            self.compare_button.setToolTip(
+                "OCR-Bereiche werden später per Texterkennung ausgewertet "
+                "und nicht als Vision-Referenz verglichen."
+            )
+        else:
+            self.capture_button.setText("Ausschnitt aufnehmen")
+            self.compare_button.setEnabled(True)
+            self.compare_button.setToolTip("")
+
         template_value = str(entry.get("template", "")).strip()
 
         if template_value:
@@ -869,10 +910,19 @@ class VisionWizardWindow(QMainWindow):
                 )
         else:
             self.template_preview.clear_source_pixmap()
-            self.template_preview.setText(
-                "Keine feste Vorlage vorhanden.\n"
-                "Diese Referenz wird direkt aus Elite aufgenommen."
-            )
+
+            if is_ocr_area:
+                self.template_preview.setText(
+                    "OCR-Bereich\n\n"
+                    "Markiere nur den Textbereich, der später gelesen werden soll.\n"
+                    "Bei der Carrier-Kapazität möglichst knapp den Wert "
+                    "„23837 / 25000 EINHEITEN“ aufnehmen."
+                )
+            else:
+                self.template_preview.setText(
+                    "Keine feste Vorlage vorhanden.\n"
+                    "Diese Referenz wird direkt aus Elite aufgenommen."
+                )
 
         config = load_config()
 
@@ -1254,10 +1304,25 @@ class VisionWizardWindow(QMainWindow):
                 self.preview.set_source_pixmap(pixmap)
                 self.refresh_reference_list()
 
+                if name.startswith("ocr_"):
+                    message_title = "OCR-Bereich gespeichert"
+                    message_text = (
+                        f"OCR-Bereich und Koordinaten gespeichert:\n"
+                        f"{output_path}\n\n"
+                        f"{result_text}"
+                    )
+                else:
+                    message_title = "Referenz gespeichert"
+                    message_text = (
+                        f"Referenzbild gespeichert:\n"
+                        f"{output_path}\n\n"
+                        f"{result_text}"
+                    )
+
                 QMessageBox.information(
                     self,
-                    "Referenz gespeichert",
-                    (f"Referenzbild gespeichert:\n{output_path}\n\n" f"{result_text}"),
+                    message_title,
+                    message_text,
                 )
 
             else:

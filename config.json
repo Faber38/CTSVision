@@ -329,6 +329,13 @@
       "width": 448,
       "height": 390,
       "image": "exit_menu_fortsetzen.png"
+    },
+    "ocr_carrier_capacity": {
+      "x": 1581,
+      "y": 145,
+      "width": 134,
+      "height": 23,
+      "image": "ocr_carrier_capacity.png"
     }
   }
 }

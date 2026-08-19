@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import threading
 import time
 import subprocess
@@ -41,6 +42,11 @@ from PySide6.QtWidgets import (
 )
 
 from journal_monitor import JournalMonitor
+from jump_history import JumpHistory, JumpHistoryRecord
+from capture import capture_window_region
+from ocr import PaddleEngine
+from project_store import load_config
+from window_finder import find_elite_window, get_current_desktop
 from help_window import HelpWindow
 from keyboard_control import press_key, type_text
 from menu_controller import MenuController
@@ -51,6 +57,7 @@ from mouse_control import (
 )
 from navigator import Navigator
 from route_info_window import RouteInfoWindow
+from carrier_history_window import CarrierHistoryWindow
 from route_manager import RouteManager, RouteManagerError
 from manual_route_planner import ManualRoutePlanner
 from settings_manager import (
@@ -174,6 +181,411 @@ class AutomationWorker(QObject):
         self.stop_requested = False
         self.carrier_jump_event = threading.Event()
 
+        # OCR für die Carrier-Kapazität wird nur bei Bedarf geladen.
+        self.capacity_ocr_engine: PaddleEngine | None = None
+        self.current_carrier_capacity: int | None = None
+        self.current_carrier_capacity_maximum: int | None = None
+
+        # Dauerhafte Carrier-/Tritium-Historie.
+        self.jump_history = JumpHistory()
+
+        # Messwerte des aktuell bearbeiteten Sprungs.
+        self.initial_tank_level: int | None = None
+        self.initial_tank_capacity: int | None = None
+        self.initial_refuel_performed = False
+        self.tank_before_jump: int | None = None
+        self.inferred_refuel_before_jump: int | None = None
+
+    def _get_capacity_ocr_engine(self) -> PaddleEngine:
+        """Lädt PaddleOCR beim ersten Capacity-OCR-Aufruf."""
+
+        if self.capacity_ocr_engine is None:
+            self.log_message.emit(
+                "Carrier-Kapazität: OCR wird geladen. "
+                "Der erste Aufruf kann einen Moment dauern."
+            )
+            self.capacity_ocr_engine = PaddleEngine()
+            self.log_message.emit("Carrier-Kapazität: OCR ist bereit.")
+
+        return self.capacity_ocr_engine
+
+    @staticmethod
+    def _normalize_capacity_text(text: str) -> str:
+        """Bereinigt typische OCR-Abweichungen in der Kapazitätsanzeige."""
+
+        normalized = text.upper()
+        normalized = normalized.replace("O", "0")
+        normalized = normalized.replace("I", "1")
+        normalized = normalized.replace("L", "1")
+        normalized = normalized.replace("|", "/")
+        normalized = normalized.replace("\\", "/")
+        normalized = normalized.replace(":", "/")
+
+        return normalized
+
+    @classmethod
+    def _parse_carrier_capacity(
+        cls,
+        text: str,
+    ) -> tuple[int, int]:
+        """Liest einen Wert wie 23837 / 25000 aus dem OCR-Text."""
+
+        normalized = cls._normalize_capacity_text(text)
+
+        match = re.search(
+            r"(\d{4,6})\s*/\s*(\d{4,6})",
+            normalized,
+        )
+
+        if match is None:
+            numbers = re.findall(r"\d{4,6}", normalized)
+
+            if len(numbers) < 2:
+                raise RuntimeError(
+                    "Carrier-Kapazität konnte nicht aus dem OCR-Text gelesen "
+                    f"werden: {text!r}"
+                )
+
+            current = int(numbers[0])
+            maximum = int(numbers[1])
+
+        else:
+            current = int(match.group(1))
+            maximum = int(match.group(2))
+
+        if current <= 0 or maximum <= 0:
+            raise RuntimeError(
+                "OCR lieferte eine ungültige Carrier-Kapazität: "
+                f"{current}/{maximum}"
+            )
+
+        # Elite zeigt nominell 25000 als Maximalwert. Der aktuelle belegte
+        # Wert kann durch installierte Carrier-Dienste über 25000 liegen.
+        if maximum != 25000:
+            self_text = f"{current}/{maximum}"
+            raise RuntimeError(
+                "OCR lieferte einen unerwarteten Maximalwert für die "
+                f"Carrier-Kapazität: {self_text}"
+            )
+
+        return current, maximum
+
+    def _read_carrier_capacity(self) -> tuple[int, int]:
+        """
+        Liest im geöffneten Carrier-Management die aktuelle Kapazität
+        aus dem Referenzbereich 'ocr_carrier_capacity'.
+        """
+
+        reference_name = "ocr_carrier_capacity"
+        config = load_config()
+        references = config.get("references", {})
+        reference = references.get(reference_name)
+
+        if not isinstance(reference, dict):
+            raise RuntimeError(
+                f"OCR-Referenz '{reference_name}' wurde in config.json "
+                "nicht gefunden."
+            )
+
+        try:
+            x = int(reference["x"])
+            y = int(reference["y"])
+            width = int(reference["width"])
+            height = int(reference["height"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise RuntimeError(
+                f"OCR-Referenz '{reference_name}' enthält ungültige Koordinaten."
+            ) from exc
+
+        if width <= 0 or height <= 0:
+            raise RuntimeError(
+                f"OCR-Referenz '{reference_name}' besitzt eine ungültige Größe."
+            )
+
+        window = find_elite_window()
+
+        if window is None:
+            raise RuntimeError(
+                "Elite-Fenster wurde für die Capacity-OCR nicht gefunden."
+            )
+
+        current_desktop = get_current_desktop()
+
+        if window.desktop != current_desktop:
+            raise RuntimeError(
+                "Elite und CTSVision befinden sich nicht auf derselben "
+                "aktiven Arbeitsfläche."
+            )
+
+        image = capture_window_region(
+            window=window,
+            x=x,
+            y=y,
+            width=width,
+            height=height,
+        )
+
+        # Wie bei der Tank-OCR wird der kleine Textbereich vergrößert.
+        image = image.resize(
+            (
+                image.width * 3,
+                image.height * 3,
+            )
+        )
+
+        debug_dir = (
+            Path(__file__).resolve().parent
+            / "references"
+            / "debug"
+        )
+        debug_dir.mkdir(parents=True, exist_ok=True)
+
+        debug_file = debug_dir / "ocr_carrier_capacity_current.png"
+        image.save(debug_file)
+
+        self.log_message.emit(
+            "Carrier-Kapazität: OCR-Ausschnitt gespeichert unter: "
+            f"{debug_file}"
+        )
+
+        result = self._get_capacity_ocr_engine().read_image(str(debug_file))
+
+        if not result.success:
+            raise RuntimeError(
+                "OCR konnte im Bereich der Carrier-Kapazität keinen Text erkennen."
+            )
+
+        self.log_message.emit(
+            "Carrier-Kapazität: OCR-Text: "
+            f"{result.text!r}"
+        )
+        self.log_message.emit(
+            "Carrier-Kapazität: OCR-Konfidenz: "
+            f"{result.confidence * 100:.2f} %."
+        )
+
+        current, maximum = self._parse_carrier_capacity(result.text)
+
+        self.current_carrier_capacity = current
+        self.current_carrier_capacity_maximum = maximum
+
+        self.log_message.emit(
+            "Carrier-Kapazität erkannt: "
+            f"{current} / {maximum} Einheiten."
+        )
+        self.log_message.emit(
+            f"Aktuelle Carrier-Masse / Used Capacity: {current} t."
+        )
+
+        return current, maximum
+
+    def _determine_tank_before_jump(self) -> None:
+        """
+        Bestimmt den Tankstand unmittelbar vor dem aktuellen Sprung.
+
+        Beim ersten Routensprung stammt der Wert direkt aus der vorgeschalteten
+        Tankprüfung, sofern dort nicht nachgetankt wurde.
+
+        Bei Folgesprüngen wird der letzte Nach-Sprung-Tankwert derselben Route
+        verwendet. Wurde nach dem vorherigen Sprung nachgetankt, lässt sich die
+        übertragene Menge aus der Änderung der Used Capacity ableiten:
+
+            vorige Capacity - aktuelle Capacity = aus dem Lager in den Tank
+                                                übertragenes Tritium
+
+        Die Rohwerte bleiben im CSV erhalten, damit die Annahme später mit
+        echten Langzeitdaten überprüft werden kann.
+        """
+
+        self.tank_before_jump = None
+        self.inferred_refuel_before_jump = None
+
+        if (
+            self.check_tank_before_jump
+            and self.initial_tank_level is not None
+        ):
+            if not self.initial_refuel_performed:
+                self.tank_before_jump = self.initial_tank_level
+                self.log_message.emit(
+                    "Carrier-Historie: Tank vor dem ersten Sprung: "
+                    f"{self.tank_before_jump} t."
+                )
+            else:
+                self.log_message.emit(
+                    "Carrier-Historie: Vor dem ersten Sprung wurde nachgetankt. "
+                    "Der exakte Tankstand direkt vor diesem ersten Sprung ist "
+                    "mit den derzeitigen Messpunkten noch nicht sicher bestimmbar."
+                )
+
+            return
+
+        previous = self.jump_history.latest_for_route(
+            self.route_manager.route_file
+        )
+
+        if previous is None:
+            self.log_message.emit(
+                "Carrier-Historie: Kein vorheriger Datensatz für diese Route "
+                "gefunden. Tank vor Sprung bleibt unbekannt."
+            )
+            return
+
+        previous_tank_after = self.jump_history.get_int(
+            previous,
+            "Tank nach Sprung t",
+        )
+        previous_capacity = self.jump_history.get_int(
+            previous,
+            "Used Capacity vor Sprung t",
+        )
+        previous_refueled = self.jump_history.get_bool(
+            previous,
+            "Nachgetankt nach Sprung",
+        )
+
+        if previous_tank_after is None:
+            self.log_message.emit(
+                "Carrier-Historie: Der vorherige Nach-Sprung-Tankwert fehlt. "
+                "Tank vor Sprung bleibt unbekannt."
+            )
+            return
+
+        if previous_refueled:
+            if (
+                previous_capacity is None
+                or self.current_carrier_capacity is None
+            ):
+                self.log_message.emit(
+                    "Carrier-Historie: Nach dem vorherigen Sprung wurde "
+                    "nachgetankt, aber die Capacity-Differenz kann nicht "
+                    "bestimmt werden."
+                )
+                return
+
+            inferred_refuel = max(
+                0,
+                previous_capacity - self.current_carrier_capacity,
+            )
+
+            self.inferred_refuel_before_jump = inferred_refuel
+
+            tank_maximum = 1000
+            self.tank_before_jump = min(
+                tank_maximum,
+                previous_tank_after + inferred_refuel,
+            )
+
+            self.log_message.emit(
+                "Carrier-Historie: Nachtankmenge seit dem letzten Sprung "
+                "aus der Capacity-Differenz ermittelt: "
+                f"{inferred_refuel} t."
+            )
+            self.log_message.emit(
+                "Carrier-Historie: Tank vor aktuellem Sprung: "
+                f"{self.tank_before_jump} t."
+            )
+            return
+
+        self.tank_before_jump = previous_tank_after
+        self.log_message.emit(
+            "Carrier-Historie: Tank vor aktuellem Sprung aus dem "
+            "vorherigen Nach-Sprung-Wert übernommen: "
+            f"{self.tank_before_jump} t."
+        )
+
+    def _write_jump_history(
+        self,
+        *,
+        current_jump,
+        from_system: str,
+        system_name: str,
+        tank_result: dict[str, object] | None,
+        auto_refuel_enabled: bool,
+    ) -> None:
+        """Schreibt den abgeschlossenen Sprung in die dauerhafte Historie."""
+
+        tank_after_jump: int | None = None
+        tank_capacity: int | None = None
+        tank_read_count: int | None = None
+        refueled_after_jump: bool | None = None
+
+        if tank_result is not None:
+            tank_after_jump = tank_result.get("first_tank_level")
+            tank_capacity = tank_result.get("tank_capacity")
+            tank_read_count = tank_result.get("tank_read_count")
+            refueled_after_jump = bool(
+                tank_result.get("refuel_performed", False)
+            )
+
+            if not isinstance(tank_after_jump, int):
+                tank_after_jump = None
+            if not isinstance(tank_capacity, int):
+                tank_capacity = None
+            if not isinstance(tank_read_count, int):
+                tank_read_count = None
+
+        actual_fuel_used: int | None = None
+
+        if (
+            self.tank_before_jump is not None
+            and tank_after_jump is not None
+        ):
+            difference = self.tank_before_jump - tank_after_jump
+
+            if 0 <= difference <= 1000:
+                actual_fuel_used = difference
+
+        planned_fuel = current_jump.fuel_used
+        deviation_from_plan: int | None = None
+
+        if actual_fuel_used is not None and planned_fuel is not None:
+            deviation_from_plan = actual_fuel_used - planned_fuel
+
+        record = JumpHistoryRecord(
+            timestamp=self.jump_history.now_timestamp(),
+            route_file=str(self.route_manager.route_file),
+            jump_number=self.route_manager.completed_jumps,
+            from_system=from_system,
+            to_system=system_name,
+            distance_ly=current_jump.distance,
+            planned_fuel=planned_fuel,
+            capacity_before_jump=self.current_carrier_capacity,
+            capacity_maximum=self.current_carrier_capacity_maximum,
+            tank_before_jump=self.tank_before_jump,
+            tank_after_jump=tank_after_jump,
+            tank_capacity=tank_capacity,
+            actual_fuel_used=actual_fuel_used,
+            deviation_from_plan=deviation_from_plan,
+            refueled_after_jump=refueled_after_jump,
+            inferred_refuel_before_jump=self.inferred_refuel_before_jump,
+            tank_read_count=tank_read_count,
+        )
+
+        self.jump_history.append(record)
+
+        self.log_message.emit(
+            "Carrier-Historie: Sprungdaten gespeichert unter "
+            f"{self.jump_history.path}."
+        )
+
+        if actual_fuel_used is not None:
+            if planned_fuel is not None:
+                self.log_message.emit(
+                    "Carrier-Historie: Verbrauch IST "
+                    f"{actual_fuel_used} t | geplant {planned_fuel} t | "
+                    f"Abweichung {deviation_from_plan:+d} t."
+                )
+            else:
+                self.log_message.emit(
+                    f"Carrier-Historie: Verbrauch IST {actual_fuel_used} t."
+                )
+        else:
+            self.log_message.emit(
+                "Carrier-Historie: IST-Verbrauch konnte für diesen Sprung "
+                "noch nicht sicher bestimmt werden. Die Rohwerte wurden "
+                "trotzdem gespeichert."
+            )
+
     @Slot()
     def request_stop(self) -> None:
         """
@@ -215,7 +627,7 @@ class AutomationWorker(QObject):
 
         try:
             self.log_message.emit(
-                "Automatische Tankroutine wird während der Abkühlzeit gestartet."
+                "Tankprüfung nach dem Sprung wird während der Abkühlzeit gestartet."
             )
 
             vision = Vision()
@@ -239,13 +651,25 @@ class AutomationWorker(QObject):
                 status_changed=lambda status: self.tank_status_changed.emit(
                     status.value
                 ),
+                allow_refuel=bool(
+                    self.settings.get("auto_refuel_enabled", True)
+                ),
             )
 
             tank_controller.run()
 
+            # Die erste OCR-Messung dieses Tanklaufs ist der Tankstand direkt
+            # nach dem CarrierJump, also noch vor einer eventuellen Spende.
+            tank_result["first_tank_level"] = tank_controller.first_tank_level
+            tank_result["last_tank_level"] = tank_controller.last_tank_level
+            tank_result["tank_capacity"] = tank_controller.tank_capacity
+            tank_result["refuel_performed"] = tank_controller.refuel_performed
+            tank_result["tank_read_count"] = tank_controller.tank_read_count
             tank_result["success"] = True
 
-            self.log_message.emit("Automatische Tankroutine wurde erfolgreich beendet.")
+            self.log_message.emit(
+                "Tankprüfung nach dem Sprung wurde erfolgreich beendet."
+            )
 
         except Exception as exc:
             failed_path = ""
@@ -286,6 +710,12 @@ class AutomationWorker(QObject):
 
             system_name = current_jump.system.strip()
 
+            # points[current_index] ist das System, aus dem der aktuelle
+            # Sprung startet; get_current_jump() liefert points[current_index + 1].
+            from_system = self.route_manager.points[
+                self.route_manager.completed_jumps
+            ].system.strip()
+
             if not system_name:
                 raise RuntimeError(
                     "Das aktuelle Sprungziel besitzt " "keinen Systemnamen."
@@ -304,48 +734,67 @@ class AutomationWorker(QObject):
             )
 
             if self.check_tank_before_jump:
-                if auto_refuel_enabled:
+                self.log_message.emit(
+                    "Erster Routenstart: Der Carrier-Tank wird vor dem "
+                    "ersten Sprung immer geprüft."
+                )
+
+                if not auto_refuel_enabled:
                     self.log_message.emit(
-                        "Erster Routenstart: Der Carrier-Tank wird vor dem "
-                        "ersten Sprung geprüft."
+                        "Automatisches Betanken ist deaktiviert. "
+                        "Der Tankstand wird nur für Prüfung und Carrier-Historie "
+                        "erfasst; Tritium wird nicht übertragen."
                     )
 
-                    tank_vision = Vision()
+                tank_vision = Vision()
 
-                    tank_navigator = Navigator(
-                        vision=tank_vision,
-                        press_key=press_key,
-                    )
+                tank_navigator = Navigator(
+                    vision=tank_vision,
+                    press_key=press_key,
+                )
 
-                    tank_menu_controller = MenuController(
-                        vision=tank_vision,
-                        navigator=tank_navigator,
-                        press_key=press_key,
-                    )
+                tank_menu_controller = MenuController(
+                    vision=tank_vision,
+                    navigator=tank_navigator,
+                    press_key=press_key,
+                )
 
-                    initial_tank_controller = TankController(
-                        menu_controller=tank_menu_controller,
-                        navigator=tank_navigator,
-                        press_key=press_key,
-                        log_message=self.log_message.emit,
-                        status_changed=lambda status: self.tank_status_changed.emit(
-                            status.value
-                        ),
-                    )
+                initial_tank_controller = TankController(
+                    menu_controller=tank_menu_controller,
+                    navigator=tank_navigator,
+                    press_key=press_key,
+                    log_message=self.log_message.emit,
+                    status_changed=lambda status: self.tank_status_changed.emit(
+                        status.value
+                    ),
+                    allow_refuel=auto_refuel_enabled,
+                )
 
-                    initial_tank_controller.run()
+                initial_tank_controller.run()
 
+                self.initial_tank_level = (
+                    initial_tank_controller.first_tank_level
+                )
+                self.initial_tank_capacity = (
+                    initial_tank_controller.tank_capacity
+                )
+                self.initial_refuel_performed = (
+                    initial_tank_controller.refuel_performed
+                )
+
+                if self.initial_tank_level is not None:
                     self.log_message.emit(
-                        "Tankprüfung vor dem ersten Sprung wurde erfolgreich beendet."
+                        "Carrier-Historie: Tankmessung vor Routenstart: "
+                        f"{self.initial_tank_level}/"
+                        f"{self.initial_tank_capacity or 1000} t."
                     )
 
-                    if self._check_stop():
-                        return
-                else:
-                    self.log_message.emit(
-                        "Die Tankprüfung vor dem ersten Sprung wird übersprungen, "
-                        "weil das automatische Betanken deaktiviert ist."
-                    )
+                self.log_message.emit(
+                    "Tankprüfung vor dem ersten Sprung wurde erfolgreich beendet."
+                )
+
+                if self._check_stop():
+                    return
 
             vision = Vision()
 
@@ -493,6 +942,24 @@ class AutomationWorker(QObject):
             if self._check_stop():
                 return
 
+            # Neue dauerhafte Messstelle:
+            # Bevor die Galaxiekarte geöffnet wird, ist oben rechts im
+            # Carrier-Management die aktuelle Used Capacity sichtbar.
+            self.log_message.emit(
+                "Carrier-Kapazität wird vor dem Öffnen der Galaxiekarte "
+                "per OCR gelesen..."
+            )
+
+            self._read_carrier_capacity()
+
+            # Erst jetzt kennen wir die aktuelle Capacity und können bei
+            # Folgesprüngen eine eventuelle Nachtankmenge seit dem letzten
+            # Sprung aus der Capacity-Differenz ableiten.
+            self._determine_tank_before_jump()
+
+            if self._check_stop():
+                return
+
             self.log_message.emit("Menü 3 erreicht. " "Galaxiekarte wird geöffnet...")
 
             controller.open_galaxy_map()
@@ -626,33 +1093,36 @@ class AutomationWorker(QObject):
             tank_result: dict[str, object] | None = None
             tank_thread: threading.Thread | None = None
 
+            # Die Tankprüfung läuft nach jedem Sprung immer.
+            # Nur die tatsächliche Tritiumübertragung hängt von der
+            # Option "Carrier bei Bedarf automatisch betanken" ab.
+            tank_finished_event = threading.Event()
+            tank_result = {
+                "success": False,
+                "error": None,
+            }
+
+            tank_thread = threading.Thread(
+                target=self._run_tank_routine,
+                kwargs={
+                    "tank_finished_event": tank_finished_event,
+                    "tank_result": tank_result,
+                },
+                name="CTSVision-TankRoutine",
+                daemon=True,
+            )
+
+            tank_thread.start()
+
             if auto_refuel_enabled:
-                tank_finished_event = threading.Event()
-                tank_result = {
-                    "success": False,
-                    "error": None,
-                }
-
-                tank_thread = threading.Thread(
-                    target=self._run_tank_routine,
-                    kwargs={
-                        "tank_finished_event": tank_finished_event,
-                        "tank_result": tank_result,
-                    },
-                    name="CTSVision-TankRoutine",
-                    daemon=True,
-                )
-
-                tank_thread.start()
-
                 self.log_message.emit(
-                    "Die Tankroutine läuft parallel zur vierminütigen Abkühlzeit."
+                    "Tankprüfung und bei Bedarf automatische Betankung laufen "
+                    "parallel zur vierminütigen Abkühlzeit."
                 )
-
             else:
                 self.log_message.emit(
-                    "Automatisches Betanken ist deaktiviert. "
-                    "Es wird nur die Abkühlzeit abgewartet."
+                    "Tankprüfung für die Carrier-Historie läuft parallel zur "
+                    "vierminütigen Abkühlzeit. Automatisches Betanken ist deaktiviert."
                 )
 
             self.log_message.emit(
@@ -673,11 +1143,11 @@ class AutomationWorker(QObject):
                         60,
                     )
 
-                    if auto_refuel_enabled and tank_finished_event is not None:
+                    if tank_finished_event is not None:
                         tank_status = (
-                            "Tankroutine beendet"
+                            "Tankprüfung beendet"
                             if tank_finished_event.is_set()
-                            else "Tankroutine läuft"
+                            else "Tankprüfung läuft"
                         )
 
                         self.log_message.emit(
@@ -693,47 +1163,58 @@ class AutomationWorker(QObject):
 
             self.log_message.emit("Die Abkühlzeit ist beendet.")
 
-            if auto_refuel_enabled:
-                if tank_finished_event is None or tank_result is None:
-                    raise RuntimeError(
-                        "Interner Fehler: Die Tankroutine wurde nicht korrekt vorbereitet."
-                    )
+            if tank_finished_event is None or tank_result is None:
+                raise RuntimeError(
+                    "Interner Fehler: Die Tankprüfung wurde nicht korrekt vorbereitet."
+                )
 
-                if not tank_finished_event.is_set():
-                    self.log_message.emit(
-                        "Die Tankroutine läuft noch. "
-                        "Der nächste Sprung bleibt gesperrt, bis sie beendet ist."
-                    )
+            if not tank_finished_event.is_set():
+                self.log_message.emit(
+                    "Die Tankprüfung läuft noch. "
+                    "Der nächste Sprung bleibt gesperrt, bis sie beendet ist."
+                )
 
-                while not tank_finished_event.wait(timeout=1.0):
-                    if self._check_stop():
-                        return
-
-                    self.log_message.emit(
-                        "Warte auf das Ende der Tankroutine. "
-                        "Es wird noch kein neuer Sprung gestartet."
-                    )
-
-                if tank_thread is not None:
-                    tank_thread.join(timeout=1.0)
-
-                if not bool(tank_result.get("success", False)):
-                    error = tank_result.get("error")
-
-                    raise RuntimeError(
-                        "Der nächste Sprung wurde gesperrt, weil die "
-                        f"Tankroutine fehlgeschlagen ist: {error}"
-                    )
+            while not tank_finished_event.wait(timeout=1.0):
+                if self._check_stop():
+                    return
 
                 self.log_message.emit(
-                    "Tankroutine und Abkühlzeit sind beendet. "
+                    "Warte auf das Ende der Tankprüfung. "
+                    "Es wird noch kein neuer Sprung gestartet."
+                )
+
+            if tank_thread is not None:
+                tank_thread.join(timeout=1.0)
+
+            if not bool(tank_result.get("success", False)):
+                error = tank_result.get("error")
+
+                raise RuntimeError(
+                    "Der nächste Sprung wurde gesperrt, weil die "
+                    f"Tankprüfung fehlgeschlagen ist: {error}"
+                )
+
+            if auto_refuel_enabled:
+                self.log_message.emit(
+                    "Tankprüfung/Betankung und Abkühlzeit sind beendet. "
+                    "Der nächste Sprung ist jetzt freigegeben."
+                )
+            else:
+                self.log_message.emit(
+                    "Tankprüfung und Abkühlzeit sind beendet. "
                     "Der nächste Sprung ist jetzt freigegeben."
                 )
 
-            else:
-                self.log_message.emit(
-                    "Abkühlzeit beendet. " "Der nächste Sprung ist jetzt freigegeben."
-                )
+            # Erst nach CarrierJump und abgeschlossener Tankroutine wird der
+            # Datensatz geschrieben. Damit enthält eine Zeile sowohl die
+            # Vor-Sprung-Werte als auch den echten Tankwert nach dem Sprung.
+            self._write_jump_history(
+                current_jump=current_jump,
+                from_system=from_system,
+                system_name=system_name,
+                tank_result=tank_result,
+                auto_refuel_enabled=auto_refuel_enabled,
+            )
 
             self.completed.emit(system_name)
 
@@ -772,6 +1253,7 @@ class AutomationWindow(QMainWindow):
         self.route_manager: RouteManager | None = None
 
         self.route_info_window: RouteInfoWindow | None = None
+        self.carrier_history_window: CarrierHistoryWindow | None = None
         self.manual_route_planner_window: ManualRoutePlanner | None = None
         self.help_window: HelpWindow | None = None
 
@@ -1211,6 +1693,18 @@ class AutomationWindow(QMainWindow):
         )
         self.route_info_button.clicked.connect(self.open_route_info)
 
+        self.carrier_history_button = QPushButton("Carrier-Historie")
+        self.carrier_history_button.setToolTip(
+            "Zeigt die dauerhaft gespeicherten Carrier- und Tritium-Messdaten.\n\n"
+            "Enthalten sind unter anderem:\n"
+            "• Sprungdistanz\n"
+            "• Used Capacity vor dem Sprung\n"
+            "• Tankstand vor und nach dem Sprung\n"
+            "• IST- und Prognoseverbrauch\n"
+            "• Abweichung der Verbrauchsprognose"
+        )
+        self.carrier_history_button.clicked.connect(self.open_carrier_history)
+
         self.manual_route_button = QPushButton("🧭  Route von Hand planen")
         self.manual_route_button.setObjectName("manualRouteButton")
         self.manual_route_button.setToolTip(
@@ -1225,8 +1719,12 @@ class AutomationWindow(QMainWindow):
         route_layout.addWidget(self.route_edit, 0, 1)
         route_layout.addWidget(self.route_button, 0, 2)
         route_layout.addWidget(self.route_info_button, 0, 3)
+
+        # Zweite Zeile: Manuelle Route bleibt erhalten,
+        # Carrier-Historie sitzt rechts daneben.
         route_layout.addWidget(QLabel("Manuell:"), 1, 0)
-        route_layout.addWidget(self.manual_route_button, 1, 1, 1, 3)
+        route_layout.addWidget(self.manual_route_button, 1, 1, 1, 2)
+        route_layout.addWidget(self.carrier_history_button, 1, 3)
 
         # --------------------------------------------------
         # Journal
@@ -1325,13 +1823,15 @@ class AutomationWindow(QMainWindow):
         tank_layout.setColumnStretch(1, 0)
         tank_layout.setColumnStretch(2, 0)
 
-        self.auto_refuel_checkbox = QCheckBox("Carrier automatisch betanken")
+        self.auto_refuel_checkbox = QCheckBox("Carrier bei Bedarf automatisch betanken")
         self.auto_refuel_checkbox.setObjectName("autoRefuelCheck")
         self.auto_refuel_checkbox.setToolTip(
-            "Ist diese Option aktiviert, wird der Tank bereits vor dem ersten "
-            "Routensprung geprüft. Nach jedem Sprung läuft die Tankroutine "
-            "parallel zur vierminütigen Abkühlzeit. Ein neuer Sprung startet "
-            "erst, wenn beide Vorgänge beendet sind."
+            "Der Carrier-Tank wird vor dem ersten Sprung und nach jedem "
+            "CarrierJump immer per OCR geprüft, damit die Carrier-Historie "
+            "vollständig bleibt.\n\n"
+            "Ist diese Option aktiviert, wird bei Unterschreiten der "
+            "Tankgrenze zusätzlich automatisch Tritium übertragen.\n"
+            "Ist sie deaktiviert, wird nur gemessen und niemals nachgetankt."
         )
 
         self.refuel_threshold_spinbox = QSpinBox()
@@ -1662,6 +2162,9 @@ class AutomationWindow(QMainWindow):
 
         if self.route_info_window is not None:
             self.route_info_window.set_dark_mode(enabled)
+
+        if self.carrier_history_window is not None:
+            self.carrier_history_window.set_dark_mode(enabled)
 
         if self.help_window is not None:
             self.help_window.set_dark_mode(enabled)
@@ -2816,6 +3319,26 @@ class AutomationWindow(QMainWindow):
 
     # --------------------------------------------------
 
+    def open_carrier_history(self) -> None:
+        """Öffnet die dauerhaft gespeicherte Carrier-/Tritium-Historie."""
+
+        if self.carrier_history_window is None:
+            self.carrier_history_window = CarrierHistoryWindow(
+                parent=self,
+                dark_mode=self.dark_mode_enabled,
+            )
+        else:
+            self.carrier_history_window.set_dark_mode(
+                self.dark_mode_enabled
+            )
+            self.carrier_history_window.refresh()
+
+        self.carrier_history_window.show()
+        self.carrier_history_window.raise_()
+        self.carrier_history_window.activateWindow()
+
+    # --------------------------------------------------
+
     def open_vision_wizard(self) -> None:
         """
         Öffnet den CTS Vision Wizard.
@@ -3307,6 +3830,7 @@ class AutomationWindow(QMainWindow):
         self.exit_elite_test_button.setEnabled(not running)
 
         self.route_button.setEnabled(not running)
+        self.carrier_history_button.setEnabled(not running)
         self.manual_route_button.setEnabled(not running)
         self.restart_button.setEnabled(not running)
         self.resume_button.setEnabled(not running)
@@ -3602,6 +4126,7 @@ class AutomationWindow(QMainWindow):
         self.start_button.setEnabled(not waiting)
         self.stop_button.setEnabled(waiting)
         self.route_button.setEnabled(not waiting)
+        self.carrier_history_button.setEnabled(not waiting)
         self.manual_route_button.setEnabled(not waiting)
         self.restart_button.setEnabled(not waiting)
         self.resume_button.setEnabled(not waiting)
@@ -4207,6 +4732,7 @@ class AutomationWindow(QMainWindow):
         self.stop_button.setEnabled(running)
 
         self.route_button.setEnabled(not running)
+        self.carrier_history_button.setEnabled(not running)
         self.manual_route_button.setEnabled(not running)
 
         self.restart_button.setEnabled(not running)

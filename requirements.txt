@@ -9,3 +9,5 @@ paddlepaddle==3.2.2
 paddlex==3.7.2
 
 protobuf==3.20.3
+
+XlsxWriter

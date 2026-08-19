@@ -97,6 +97,39 @@ CTSVision trifft keine unsicheren Entscheidungen.
 
 **Robustheit vor Geschwindigkeit.**
 
+### Version 1.9.1
+✨ Neu
+- **Carrier- und Tritium-Historie hinzugefügt.**
+  CTSVision protokolliert erfolgreiche Carrier-Sprünge jetzt dauerhaft in einer eigenen Historie.
+  Gespeichert werden unter anderem Start- und Zielsystem, Sprungdistanz, Carrier-Masse / Used Capacity,
+  Tankstand vor und nach dem Sprung, geplanter und tatsächlicher Tritiumverbrauch sowie die Abweichung.
+- **Carrier-Masse / Used Capacity per OCR.**
+  Vor dem Öffnen der Galaxiekarte liest CTSVision die aktuelle Carrier-Kapazität automatisch aus dem
+  Carrier-Management aus und verwendet den Wert für die Verbrauchsauswertung.
+- **Tankmessung für die Historie läuft immer.**
+  Der Tritiumtank wird vor dem ersten Routensprung und nach jedem `CarrierJump` per OCR geprüft,
+  unabhängig davon, ob das automatische Nachtanken aktiviert ist.
+- **Automatisches Nachtanken von der Tankprüfung getrennt.**
+  Die Option heißt jetzt **„Carrier bei Bedarf automatisch betanken“**.
+  Ist sie deaktiviert, wird der Tankstand weiterhin für die Historie erfasst, es wird jedoch kein Tritium übertragen.
+- **Neues Fenster „Carrier-Historie“.**
+  Die gesammelten Messwerte können direkt in CTSVision als übersichtliche Tabelle mit Gesamtwerten,
+  Durchschnittswerten und Verbrauchsabweichungen angezeigt werden.
+- **Sprungdetails per Mausklick.**
+  Ein Klick auf eine Tabellenzeile öffnet eine separate Detailansicht mit allen gespeicherten Rohdaten des Sprungs.
+- **Backup und Wiederherstellung der Historie.**
+  Die komplette Carrier-Historie kann gesichert und später wiederhergestellt werden.
+  Vor einer Wiederherstellung wird die vorhandene Historie zusätzlich automatisch gesichert.
+- **Excel-Export hinzugefügt.**
+  Die Carrier-Historie kann als formatierte `.xlsx`-Datei für Excel oder LibreOffice exportiert werden.
+- **Sicheres Löschen der Historie.**
+  Das Löschen aller Messdaten ist nur nach zwei aufeinanderfolgenden Sicherheitsabfragen möglich.
+- **Manueller Routenplaner mit Historien-Kalibrierung.**
+  Der XYZ-Routenplaner kann reale CTSVision-Verbrauchsmessungen aus der Carrier-Historie auswerten
+  und die vorhandene Tritium-Prognose damit kalibrieren.
+  Mindestens 5 gültige Messungen sind erforderlich; ab 10 Messungen wird die Kalibrierung empfohlen.
+  Die ursprüngliche Verbrauchsformel bleibt dabei als Basis erhalten.
+
 ### Version 1.9
 ✨ Neu
 - **Integrierte Hilfe hinzugefügt.**
