@@ -270,10 +270,18 @@ class AutomationWorker(QObject):
 
         return current, maximum
 
-    def _read_carrier_capacity(self) -> tuple[int, int]:
+    def _read_carrier_capacity(
+        self,
+        *,
+        max_attempts: int = 3,
+    ) -> tuple[int, int]:
         """
         Liest im geöffneten Carrier-Management die aktuelle Kapazität
         aus dem Referenzbereich 'ocr_carrier_capacity'.
+
+        Bei einem nicht lesbaren oder unplausiblen OCR-Ergebnis wird die
+        Anzeige bis zu max_attempts-mal erneut aufgenommen und ausgewertet.
+        Erst nach dem letzten Fehlversuch wird der Automatiklauf abgebrochen.
         """
 
         reference_name = "ocr_carrier_capacity"
@@ -317,22 +325,6 @@ class AutomationWorker(QObject):
                 "aktiven Arbeitsfläche."
             )
 
-        image = capture_window_region(
-            window=window,
-            x=x,
-            y=y,
-            width=width,
-            height=height,
-        )
-
-        # Wie bei der Tank-OCR wird der kleine Textbereich vergrößert.
-        image = image.resize(
-            (
-                image.width * 3,
-                image.height * 3,
-            )
-        )
-
         debug_dir = (
             Path(__file__).resolve().parent
             / "references"
@@ -340,44 +332,96 @@ class AutomationWorker(QObject):
         )
         debug_dir.mkdir(parents=True, exist_ok=True)
 
-        debug_file = debug_dir / "ocr_carrier_capacity_current.png"
-        image.save(debug_file)
+        last_error: Exception | None = None
 
-        self.log_message.emit(
-            "Carrier-Kapazität: OCR-Ausschnitt gespeichert unter: "
-            f"{debug_file}"
-        )
-
-        result = self._get_capacity_ocr_engine().read_image(str(debug_file))
-
-        if not result.success:
-            raise RuntimeError(
-                "OCR konnte im Bereich der Carrier-Kapazität keinen Text erkennen."
+        for attempt in range(1, max_attempts + 1):
+            self.log_message.emit(
+                f"Carrier-Kapazität: OCR-Prüfung {attempt}/{max_attempts}..."
             )
 
-        self.log_message.emit(
-            "Carrier-Kapazität: OCR-Text: "
-            f"{result.text!r}"
-        )
-        self.log_message.emit(
-            "Carrier-Kapazität: OCR-Konfidenz: "
-            f"{result.confidence * 100:.2f} %."
-        )
+            image = capture_window_region(
+                window=window,
+                x=x,
+                y=y,
+                width=width,
+                height=height,
+            )
 
-        current, maximum = self._parse_carrier_capacity(result.text)
+            # Wie bei der Tank-OCR wird der kleine Textbereich vergrößert.
+            image = image.resize(
+                (
+                    image.width * 3,
+                    image.height * 3,
+                )
+            )
 
-        self.current_carrier_capacity = current
-        self.current_carrier_capacity_maximum = maximum
+            debug_file = (
+                debug_dir
+                / f"ocr_carrier_capacity_attempt_{attempt}.png"
+            )
+            image.save(debug_file)
 
-        self.log_message.emit(
-            "Carrier-Kapazität erkannt: "
-            f"{current} / {maximum} Einheiten."
+            self.log_message.emit(
+                "Carrier-Kapazität: OCR-Ausschnitt gespeichert unter: "
+                f"{debug_file}"
+            )
+
+            try:
+                result = self._get_capacity_ocr_engine().read_image(
+                    str(debug_file)
+                )
+
+                if not result.success:
+                    raise RuntimeError(
+                        "OCR konnte im Bereich der Carrier-Kapazität "
+                        "keinen Text erkennen."
+                    )
+
+                self.log_message.emit(
+                    "Carrier-Kapazität: OCR-Text: "
+                    f"{result.text!r}"
+                )
+                self.log_message.emit(
+                    "Carrier-Kapazität: OCR-Konfidenz: "
+                    f"{result.confidence * 100:.2f} %."
+                )
+
+                current, maximum = self._parse_carrier_capacity(
+                    result.text
+                )
+
+                self.current_carrier_capacity = current
+                self.current_carrier_capacity_maximum = maximum
+
+                self.log_message.emit(
+                    "Carrier-Kapazität erkannt: "
+                    f"{current} / {maximum} Einheiten."
+                )
+                self.log_message.emit(
+                    f"Aktuelle Carrier-Masse / Used Capacity: {current} t."
+                )
+
+                return current, maximum
+
+            except Exception as exc:
+                last_error = exc
+
+                self.log_message.emit(
+                    "Carrier-Kapazität: OCR-Ergebnis war nicht eindeutig "
+                    f"oder unplausibel: {exc}"
+                )
+
+                if attempt < max_attempts:
+                    self.log_message.emit(
+                        "Carrier-Kapazität: Die Anzeige wird erneut geprüft."
+                    )
+                    time.sleep(0.75)
+
+        raise RuntimeError(
+            "Carrier-Kapazität konnte auch nach "
+            f"{max_attempts} OCR-Versuchen nicht sicher gelesen werden. "
+            f"Letzter Fehler: {last_error}"
         )
-        self.log_message.emit(
-            f"Aktuelle Carrier-Masse / Used Capacity: {current} t."
-        )
-
-        return current, maximum
 
     def _determine_tank_before_jump(self) -> None:
         """
@@ -1267,6 +1311,8 @@ class AutomationWindow(QMainWindow):
         self.tank_test_worker: TankTestWorker | None = None
 
         self.start_next_jump = False
+        self.stop_after_current_jump = False
+        self.stop_at_system: str | None = None
         self.shutdown_elite_after_finish = False
         self.shutdown_pc_after_finish = False
         self.settings = load_settings()
@@ -2087,10 +2133,30 @@ class AutomationWindow(QMainWindow):
         )
         self.start_button.clicked.connect(self.start_automation)
 
+        self.graceful_stop_button = QPushButton("⏹  Route stoppen bei...")
+        self.graceful_stop_button.setObjectName("secondaryButton")
+        self.graceful_stop_button.setMinimumHeight(36)
+        self.graceful_stop_button.setToolTip(
+            "Plant einen sauberen Stopp der laufenden Route.\n\n"
+            "Möglich sind:\n"
+            "• nach dem aktuellen Sprung stoppen\n"
+            "• nach einem auswählbaren noch offenen Sprungziel stoppen\n\n"
+            "CarrierJump, Tankprüfung, eventuelles Nachtanken, Abkühlzeit "
+            "und Carrier-Historie werden vor dem Stopp vollständig abgeschlossen."
+        )
+        self.graceful_stop_button.clicked.connect(
+            self.configure_graceful_stop
+        )
+        self.graceful_stop_button.setEnabled(False)
+
         self.stop_button = QPushButton("■  Stop")
         self.stop_button.setObjectName("dangerButton")
         self.stop_button.setMinimumHeight(36)
         self.stop_button.setMinimumWidth(90)
+        self.stop_button.setToolTip(
+            "Fordert einen sofortigen kontrollierten Abbruch des aktuell "
+            "laufenden Automatikablaufs an."
+        )
         self.stop_button.clicked.connect(self.stop_automation)
         self.stop_button.setEnabled(False)
 
@@ -2098,6 +2164,7 @@ class AutomationWindow(QMainWindow):
         button_layout.addWidget(self.resume_button)
         button_layout.addStretch()
         button_layout.addWidget(self.start_button)
+        button_layout.addWidget(self.graceful_stop_button)
         button_layout.addWidget(self.stop_button)
 
         layout.addLayout(button_layout)
@@ -3826,6 +3893,7 @@ class AutomationWindow(QMainWindow):
         """
 
         self.start_button.setEnabled(not running)
+        self.graceful_stop_button.setEnabled(False)
         self.tank_test_button.setEnabled(not running)
         self.exit_elite_test_button.setEnabled(not running)
 
@@ -4125,6 +4193,7 @@ class AutomationWindow(QMainWindow):
 
         self.start_button.setEnabled(not waiting)
         self.stop_button.setEnabled(waiting)
+        self.graceful_stop_button.setEnabled(False)
         self.route_button.setEnabled(not waiting)
         self.carrier_history_button.setEnabled(not waiting)
         self.manual_route_button.setEnabled(not waiting)
@@ -4223,6 +4292,14 @@ class AutomationWindow(QMainWindow):
             self.log("Automatik konnte nicht starten: Route abgeschlossen.")
             return
 
+        if initial_start:
+            self.stop_after_current_jump = False
+            self.stop_at_system = None
+            if hasattr(self, "graceful_stop_button"):
+                self.graceful_stop_button.setText(
+                    "⏹  Route stoppen bei..."
+                )
+
         self.log("--------------------------------")
         self.log("Automatik-Testlauf wird gestartet.")
         self.log("Ziel aus RouteManager: " f"{current_jump.system}")
@@ -4250,6 +4327,149 @@ class AutomationWindow(QMainWindow):
 
     # --------------------------------------------------
 
+    def configure_graceful_stop(self) -> None:
+        """
+        Öffnet die Auswahl für einen regulären Routenstopp.
+
+        Möglich sind:
+            - nach dem aktuell laufenden Sprung stoppen
+            - nach einem bestimmten noch offenen Routenziel stoppen
+
+        Der ausgewählte Ziel-Sprung wird immer vollständig abgeschlossen,
+        einschließlich Tankprüfung, eventuellem Nachtanken, Abkühlzeit
+        und Carrier-Historie.
+        """
+
+        if self.scheduled_start_active:
+            QMessageBox.information(
+                self,
+                "Route ist nur eingeplant",
+                (
+                    "Die Route läuft noch nicht. "
+                    "Zum Aufheben der geplanten Startzeit bitte den Stop-Button verwenden."
+                ),
+            )
+            return
+
+        if self.automation_thread is None or self.route_manager is None:
+            self.log("Es läuft derzeit keine Route, für die ein Stopp geplant werden kann.")
+            return
+
+        remaining_targets = self.route_manager.get_remaining_targets()
+
+        if not remaining_targets:
+            self.log("Es sind keine offenen Sprungziele mehr vorhanden.")
+            return
+
+        current_target = self.route_manager.get_current_target()
+
+        items: list[str] = ["Nach diesem Sprung stoppen"]
+
+        for index, system in enumerate(remaining_targets, start=1):
+            if system == current_target:
+                label = f"{index:02d} – {system}   [aktueller Sprung]"
+            else:
+                label = f"{index:02d} – {system}"
+            items.append(label)
+
+        selected_text, accepted = QInputDialog.getItem(
+            self,
+            "Route stoppen",
+            (
+                "Wann soll CTSVision die Route sauber anhalten?\n\n"
+                "Der gewählte Sprung wird vollständig abgeschlossen. "
+                "Danach wird kein weiteres Sprungziel gestartet."
+            ),
+            items,
+            0,
+            False,
+        )
+
+        if not accepted:
+            return
+
+        if selected_text == items[0]:
+            self.stop_after_current_jump = True
+            self.stop_at_system = None
+            self.start_next_jump = False
+
+            self.graceful_stop_button.setText(
+                "✓  Stopp nach diesem Sprung vorgemerkt"
+            )
+
+            self.log("--------------------------------")
+            self.log("Regulärer Stopp nach diesem Sprung angefordert.")
+            self.log(
+                "Der aktuelle Sprung wird vollständig abgeschlossen. "
+                "Danach wird kein weiteres Sprungziel gestartet."
+            )
+            self.log(
+                "Tankprüfung, eventuelles Nachtanken, Abkühlzeit und "
+                "Carrier-Historie werden noch sauber beendet."
+            )
+            return
+
+        try:
+            selected_index = items.index(selected_text) - 1
+        except ValueError:
+            return
+
+        if not (0 <= selected_index < len(remaining_targets)):
+            return
+
+        selected_system = remaining_targets[selected_index]
+
+        # Wird der aktuell laufende Sprung gewählt, entspricht das exakt
+        # dem bisherigen "Nach diesem Sprung stoppen".
+        if selected_system == current_target:
+            self.stop_after_current_jump = True
+            self.stop_at_system = None
+            self.start_next_jump = False
+
+            self.graceful_stop_button.setText(
+                "✓  Stopp nach diesem Sprung vorgemerkt"
+            )
+
+            self.log("--------------------------------")
+            self.log(
+                f"Regulärer Stopp nach aktuellem Sprung vorgemerkt: {selected_system}"
+            )
+            self.log(
+                "Der aktuelle Sprung wird vollständig abgeschlossen. "
+                "Danach wird kein weiteres Sprungziel gestartet."
+            )
+            return
+
+        self.stop_after_current_jump = False
+        self.stop_at_system = selected_system
+        self.start_next_jump = False
+
+        short_name = selected_system
+        if len(short_name) > 28:
+            short_name = short_name[:25] + "..."
+
+        self.graceful_stop_button.setText(
+            f"✓  Stopp bei: {short_name}"
+        )
+
+        self.log("--------------------------------")
+        self.log(
+            f"Regulärer Routenstopp vorgemerkt bei Ziel: {selected_system}"
+        )
+        self.log(
+            "CTSVision führt alle vorherigen Sprünge normal aus. "
+            "Nach diesem Ziel wird die Route sauber angehalten."
+        )
+        self.log(
+            "Auch beim gewählten Ziel werden Tankprüfung, eventuelles Nachtanken, "
+            "Abkühlzeit und Carrier-Historie vollständig abgeschlossen."
+        )
+
+    # --------------------------------------------------
+
+
+    # --------------------------------------------------
+
     def stop_automation(self) -> None:
         """
         Fordert das kontrollierte Stoppen der Automatik an.
@@ -4267,6 +4487,8 @@ class AutomationWindow(QMainWindow):
 
         self.shutdown_elite_after_finish = False
         self.shutdown_pc_after_finish = False
+        self.stop_after_current_jump = False
+        self.stop_at_system = None
 
         self.log("Stop wird angefordert...")
 
@@ -4323,6 +4545,40 @@ class AutomationWindow(QMainWindow):
                     "über das Spielmenü beendet."
                 )
 
+            return
+
+        if self.stop_after_current_jump:
+            self.start_next_jump = False
+            self.log(
+                "Regulärer Stopp erreicht: Der aktuelle Sprung wurde "
+                "vollständig abgeschlossen."
+            )
+            self.log(
+                "Es wird kein weiteres Sprungziel gestartet. "
+                "Die Route bleibt mit dem aktuellen Fortschritt gespeichert."
+            )
+            return
+
+        if (
+            self.stop_at_system is not None
+            and system_name == self.stop_at_system
+        ):
+            self.start_next_jump = False
+            reached_system = self.stop_at_system
+            self.stop_at_system = None
+
+            self.log(
+                "Geplanter Routenstopp erreicht: "
+                f"{reached_system}"
+            )
+            self.log(
+                "Der ausgewählte Sprung wurde vollständig abgeschlossen. "
+                "Es wird kein weiteres Sprungziel gestartet."
+            )
+            self.log(
+                "Die Route bleibt mit dem aktuellen Fortschritt gespeichert "
+                "und kann später fortgesetzt werden."
+            )
             return
 
         self.start_next_jump = True
@@ -4716,6 +4972,14 @@ class AutomationWindow(QMainWindow):
 
         self._set_automation_running(False)
 
+        if self.stop_after_current_jump:
+            self.stop_after_current_jump = False
+
+        if self.stop_at_system is None:
+            self.graceful_stop_button.setText(
+                "⏹  Route stoppen bei..."
+            )
+
     # --------------------------------------------------
 
     def _set_automation_running(
@@ -4730,6 +4994,12 @@ class AutomationWindow(QMainWindow):
         self.start_button.setEnabled(not running)
 
         self.stop_button.setEnabled(running)
+        self.graceful_stop_button.setEnabled(running)
+
+        if not running:
+            self.graceful_stop_button.setText(
+                "⏹  Route stoppen bei..."
+            )
 
         self.route_button.setEnabled(not running)
         self.carrier_history_button.setEnabled(not running)

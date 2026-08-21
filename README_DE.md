@@ -97,6 +97,29 @@ CTSVision trifft keine unsicheren Entscheidungen.
 
 **Robustheit vor Geschwindigkeit.**
 
+### Version 1.9.2
+✨ Neu
+- **Robustere OCR-Erkennung der Carrier-Kapazität.**
+  Kann die Carrier-Kapazität / Used Capacity nicht plausibel gelesen werden, versucht CTSVision
+  die OCR-Erkennung jetzt bis zu drei Mal. Erst wenn auch der dritte Versuch fehlschlägt,
+  wird der Automatiklauf aus Sicherheitsgründen abgebrochen.
+- **Neuer kontrollierter Routenstopp „Route stoppen bei...“.**
+  Eine laufende Route kann jetzt entweder nach dem aktuell laufenden Sprung oder nach einem
+  frei wählbaren noch offenen Sprungziel sauber angehalten werden.
+- **Stoppziel direkt aus der aktuellen Route auswählbar.**
+  CTSVision zeigt nur noch offene Routenziele an und kennzeichnet das momentan laufende Ziel
+  zusätzlich als aktuellen Sprung.
+- **Datensicherer Abschluss vor dem Routenstopp.**
+  Der ausgewählte Sprung wird vollständig abgeschlossen. CTSVision wartet noch auf den bestätigten
+  `CarrierJump`, die Tankprüfung, gegebenenfalls das automatische Nachtanken, die vierminütige
+  Carrier-Abkühlzeit und das vollständige Schreiben der Carrier-Historie.
+  Erst danach wird kein weiteres Sprungziel gestartet.
+- **Stoppziel während der laufenden Route änderbar.**
+  Über „Route stoppen bei...“ kann während der Fahrt ein anderes noch offenes Ziel ausgewählt werden.
+- **Integrierte Hilfe aktualisiert.**
+  Die neue Routenstopp-Funktion, die OCR-Wiederholungsprüfung und der datensichere Ablauf
+  sind jetzt in der deutschsprachigen Hilfe dokumentiert.
+
 ### Version 1.9.1
 ✨ Neu
 - **Carrier- und Tritium-Historie hinzugefügt.**

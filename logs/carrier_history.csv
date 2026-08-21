@@ -1,3 +1,53 @@
 Zeit;Route;Sprung;Von System;Nach System;Distanz Lj;Verbrauch geplant t;Used Capacity vor Sprung t;Capacity Maximum t;Tank vor Sprung t;Tank nach Sprung t;Tank Maximum t;Verbrauch IST t;Abweichung t;Nachgetankt nach Sprung;Ermitteltes Nachtanken vor Sprung t;Tank OCR Messungen
 2026-08-19T20:36:10+02:00;/home/holger/Schreibtisch/route.csv;1;Plio Aihm XG-O c6-45;Plio Aihm UC-V d2-159;109.900;28;23837;25000;1000;975;1000;25;-3;Nein;;1
 2026-08-19T21:14:08+02:00;/home/holger/Schreibtisch/route.csv;1;Plio Aihm UC-V d2-159;Plio Aihm JZ-R c4-12;79.700;24;23837;25000;975;950;1000;25;1;Nein;;1
+2026-08-19T22:09:10+02:00;/home/holger/Schreibtisch/route.csv;1;Plio Aihm JZ-R c4-12;Plio Aihm OV-T b31-8;498.500;132;23837;25000;950;821;1000;129;-3;Nein;;1
+2026-08-19T22:30:09+02:00;/home/holger/Schreibtisch/route.csv;2;Plio Aihm OV-T b31-8;Plio Aihm FW-B c27-33;498.200;132;23837;25000;821;692;1000;129;-3;Nein;;1
+2026-08-19T22:51:09+02:00;/home/holger/Schreibtisch/route.csv;3;Plio Aihm FW-B c27-33;Eodgovvy QH-U b17-2;499.900;132;23837;25000;692;563;1000;129;-3;Nein;;1
+2026-08-19T23:12:08+02:00;/home/holger/Schreibtisch/route.csv;4;Eodgovvy QH-U b17-2;Preae Aihm LT-I d9-61;498.900;131;23837;25000;563;435;1000;128;-3;Nein;;1
+2026-08-19T23:33:11+02:00;/home/holger/Schreibtisch/route.csv;5;Preae Aihm LT-I d9-61;Synookoi WO-A d21;499.800;131;23837;25000;435;307;1000;128;-3;Ja;;1
+2026-08-19T23:54:11+02:00;/home/holger/Schreibtisch/route.csv;6;Synookoi WO-A d21;Synookoi QL-H b25-2;498.900;131;23837;25000;307;871;1000;;;Nein;0;1
+2026-08-20T00:15:11+02:00;/home/holger/Schreibtisch/route.csv;7;Synookoi QL-H b25-2;Synookoi RT-Q b47-6;498.300;130;23837;25000;871;742;1000;129;-1;Nein;;1
+2026-08-20T00:36:08+02:00;/home/holger/Schreibtisch/route.csv;8;Synookoi RT-Q b47-6;Pueloea YT-Q c5-42;498.500;132;23837;25000;742;613;1000;129;-3;Nein;;1
+2026-08-20T00:57:11+02:00;/home/holger/Schreibtisch/route.csv;9;Pueloea YT-Q c5-42;Pueloea ZQ-Q b33-8;499.900;132;23837;25000;613;484;1000;129;-3;Nein;;1
+2026-08-20T01:18:10+02:00;/home/holger/Schreibtisch/route.csv;10;Pueloea ZQ-Q b33-8;Pueloea MD-A d14-213;499.800;132;23837;25000;484;356;1000;128;-4;Nein;;1
+2026-08-20T01:39:08+02:00;/home/holger/Schreibtisch/route.csv;11;Pueloea MD-A d14-213;Blo Aihm BM-U b17-4;499.900;131;23837;25000;356;228;1000;128;-3;Ja;;1
+2026-08-20T02:00:10+02:00;/home/holger/Schreibtisch/route.csv;12;Blo Aihm BM-U b17-4;Blo Aihm ZD-E b40-34;497.200;130;23837;25000;228;661;1000;;;Nein;0;1
+2026-08-20T02:21:08+02:00;/home/holger/Schreibtisch/route.csv;13;Blo Aihm ZD-E b40-34;Iockols BB-Z c87;499.800;131;23837;25000;661;532;1000;129;-2;Nein;;1
+2026-08-20T02:42:09+02:00;/home/holger/Schreibtisch/route.csv;14;Iockols BB-Z c87;Byoi Aip AX-B c13-319;499.300;130;23837;25000;532;404;1000;128;-2;Nein;;1
+2026-08-20T03:03:10+02:00;/home/holger/Schreibtisch/route.csv;15;Byoi Aip AX-B c13-319;Byoi Aip ZK-P e5-2990;499.800;132;23837;25000;404;276;1000;128;-4;Ja;;2
+2026-08-20T03:24:11+02:00;/home/holger/Schreibtisch/route.csv;16;Byoi Aip ZK-P e5-2990;Eorl Aod WJ-G b11-73;499.700;133;22583;25000;1000;874;1000;126;-7;Nein;1254;1
+2026-08-20T03:45:09+02:00;/home/holger/Schreibtisch/route.csv;17;Eorl Aod WJ-G b11-73;Eorl Aod WW-P b33-44;499.300;132;22583;25000;874;748;1000;126;-6;Nein;;1
+2026-08-20T04:06:09+02:00;/home/holger/Schreibtisch/route.csv;18;Eorl Aod WW-P b33-44;Eorl Aod VW-Z c27-175;499.700;132;22583;25000;748;622;1000;126;-6;Nein;;1
+2026-08-20T04:27:09+02:00;/home/holger/Schreibtisch/route.csv;19;Eorl Aod VW-Z c27-175;Whambooe XD-J c9-317;499.300;132;22583;25000;622;497;1000;125;-7;Nein;;1
+2026-08-20T04:48:11+02:00;/home/holger/Schreibtisch/route.csv;20;Whambooe XD-J c9-317;Whambooe YZ-G d10-1903;500.000;131;22583;25000;497;372;1000;125;-6;Nein;;1
+2026-08-20T05:09:09+02:00;/home/holger/Schreibtisch/route.csv;21;Whambooe YZ-G d10-1903;Eorl Auwsy XG-X c1-287;499.800;131;22583;25000;372;247;1000;125;-6;Ja;;1
+2026-08-20T05:30:08+02:00;/home/holger/Schreibtisch/route.csv;22;Eorl Auwsy XG-X c1-287;Eorl Auwsy PD-C a56-0;499.800;131;22583;25000;247;651;1000;;;Nein;0;1
+2026-08-20T05:51:10+02:00;/home/holger/Schreibtisch/route.csv;23;Eorl Auwsy PD-C a56-0;Eorl Auwsy KM-D d12-926;499.800;130;22583;25000;651;525;1000;126;-4;Nein;;1
+2026-08-20T06:12:08+02:00;/home/holger/Schreibtisch/route.csv;24;Eorl Auwsy KM-D d12-926;Shrogaae KK-A d983;229.400;62;22583;25000;525;465;1000;60;-2;Nein;;1
+2026-08-20T19:43:08+02:00;/home/holger/Schreibtisch/fleet-carrier-Shrogaae ZL-Z b59-Tyriedgiae IV-N c20-1-FFDD06AE-9CBA-11F1-88D8-F9FA3A4687E5.csv;1;Shrogaae ZL-Z b59;Ongaihn PV-L c21-477;499.707;132;22054;25000;1000;875;1000;125;-7;Nein;;1
+2026-08-20T20:04:11+02:00;/home/holger/Schreibtisch/fleet-carrier-Shrogaae ZL-Z b59-Tyriedgiae IV-N c20-1-FFDD06AE-9CBA-11F1-88D8-F9FA3A4687E5.csv;2;Ongaihn PV-L c21-477;Ongaihn LH-D c12-156;499.909;132;22054;25000;875;750;1000;125;-7;Nein;;1
+2026-08-20T20:25:10+02:00;/home/holger/Schreibtisch/fleet-carrier-Shrogaae ZL-Z b59-Tyriedgiae IV-N c20-1-FFDD06AE-9CBA-11F1-88D8-F9FA3A4687E5.csv;3;Ongaihn LH-D c12-156;Ongaihn FY-U c2-441;498.319;131;22054;25000;750;626;1000;124;-7;Nein;;1
+2026-08-20T20:46:11+02:00;/home/holger/Schreibtisch/fleet-carrier-Shrogaae ZL-Z b59-Tyriedgiae IV-N c20-1-FFDD06AE-9CBA-11F1-88D8-F9FA3A4687E5.csv;4;Ongaihn FY-U c2-441;Whamboo PC-D d12-5805;498.120;131;22054;25000;626;502;1000;124;-7;Nein;;1
+2026-08-20T21:07:10+02:00;/home/holger/Schreibtisch/fleet-carrier-Shrogaae ZL-Z b59-Tyriedgiae IV-N c20-1-FFDD06AE-9CBA-11F1-88D8-F9FA3A4687E5.csv;5;Whamboo PC-D d12-5805;Dryao Aoc TH-P b33-19;499.199;131;22054;25000;502;378;1000;124;-7;Nein;;1
+2026-08-20T21:28:08+02:00;/home/holger/Schreibtisch/fleet-carrier-Shrogaae ZL-Z b59-Tyriedgiae IV-N c20-1-FFDD06AE-9CBA-11F1-88D8-F9FA3A4687E5.csv;6;Dryao Aoc TH-P b33-19;Dryao Aoc XI-K c8-676;496.270;130;22054;25000;378;255;1000;123;-7;Ja;;2
+2026-08-20T21:49:10+02:00;/home/holger/Schreibtisch/fleet-carrier-Shrogaae ZL-Z b59-Tyriedgiae IV-N c20-1-FFDD06AE-9CBA-11F1-88D8-F9FA3A4687E5.csv;7;Dryao Aoc XI-K c8-676;Oephail LY-X c28-338;497.849;130;20800;25000;1000;879;1000;121;-9;Nein;1254;1
+2026-08-20T22:10:11+02:00;/home/holger/Schreibtisch/fleet-carrier-Shrogaae ZL-Z b59-Tyriedgiae IV-N c20-1-FFDD06AE-9CBA-11F1-88D8-F9FA3A4687E5.csv;8;Oephail LY-X c28-338;Eos Aoc GF-M c21-139;492.070;128;20800;25000;879;759;1000;120;-8;Nein;;1
+2026-08-20T22:31:09+02:00;/home/holger/Schreibtisch/fleet-carrier-Shrogaae ZL-Z b59-Tyriedgiae IV-N c20-1-FFDD06AE-9CBA-11F1-88D8-F9FA3A4687E5.csv;9;Eos Aoc GF-M c21-139;Eos Aoc RA-C b27-43;489.044;127;20800;25000;759;640;1000;119;-8;Nein;;1
+2026-08-20T22:52:11+02:00;/home/holger/Schreibtisch/fleet-carrier-Shrogaae ZL-Z b59-Tyriedgiae IV-N c20-1-FFDD06AE-9CBA-11F1-88D8-F9FA3A4687E5.csv;10;Eos Aoc RA-C b27-43;Eos Aoc OM-T a18-1;499.261;129;20800;25000;640;519;1000;121;-8;Nein;;1
+2026-08-20T23:13:10+02:00;/home/holger/Schreibtisch/fleet-carrier-Shrogaae ZL-Z b59-Tyriedgiae IV-N c20-1-FFDD06AE-9CBA-11F1-88D8-F9FA3A4687E5.csv;11;Eos Aoc OM-T a18-1;Byeia Aihm WA-H b52-7;499.943;129;20800;25000;519;398;1000;121;-8;Nein;;1
+2026-08-20T23:34:08+02:00;/home/holger/Schreibtisch/fleet-carrier-Shrogaae ZL-Z b59-Tyriedgiae IV-N c20-1-FFDD06AE-9CBA-11F1-88D8-F9FA3A4687E5.csv;12;Byeia Aihm WA-H b52-7;Iockorps KS-N b34-1;497.393;128;20800;25000;398;278;1000;120;-8;Ja;;1
+2026-08-20T23:55:11+02:00;/home/holger/Schreibtisch/fleet-carrier-Shrogaae ZL-Z b59-Tyriedgiae IV-N c20-1-FFDD06AE-9CBA-11F1-88D8-F9FA3A4687E5.csv;13;Iockorps KS-N b34-1;Iockorps PD-Q b19-7;488.186;126;20800;25000;278;668;1000;;;Nein;0;1
+2026-08-21T00:16:11+02:00;/home/holger/Schreibtisch/fleet-carrier-Shrogaae ZL-Z b59-Tyriedgiae IV-N c20-1-FFDD06AE-9CBA-11F1-88D8-F9FA3A4687E5.csv;14;Iockorps PD-Q b19-7;Iockorps WO-T b3-10;495.886;127;20800;25000;668;548;1000;120;-7;Nein;;1
+2026-08-21T00:37:08+02:00;/home/holger/Schreibtisch/fleet-carrier-Shrogaae ZL-Z b59-Tyriedgiae IV-N c20-1-FFDD06AE-9CBA-11F1-88D8-F9FA3A4687E5.csv;15;Iockorps WO-T b3-10;Froadue MM-P b47-5;499.857;128;20800;25000;548;427;1000;121;-7;Nein;;1
+2026-08-21T00:58:11+02:00;/home/holger/Schreibtisch/fleet-carrier-Shrogaae ZL-Z b59-Tyriedgiae IV-N c20-1-FFDD06AE-9CBA-11F1-88D8-F9FA3A4687E5.csv;16;Froadue MM-P b47-5;Blu Aip MC-W b30-2;496.890;127;20800;25000;427;307;1000;120;-7;Ja;;2
+2026-08-21T01:19:11+02:00;/home/holger/Schreibtisch/fleet-carrier-Shrogaae ZL-Z b59-Tyriedgiae IV-N c20-1-FFDD06AE-9CBA-11F1-88D8-F9FA3A4687E5.csv;17;Blu Aip MC-W b30-2;Blu Aip YO-W b16-0;496.951;127;19546;25000;1000;882;1000;118;-9;Nein;1254;1
+2026-08-21T01:40:11+02:00;/home/holger/Schreibtisch/fleet-carrier-Shrogaae ZL-Z b59-Tyriedgiae IV-N c20-1-FFDD06AE-9CBA-11F1-88D8-F9FA3A4687E5.csv;18;Blu Aip YO-W b16-0;Blu Aip OU-A c3;495.795;126;19546;25000;882;764;1000;118;-8;Nein;;1
+2026-08-21T02:01:11+02:00;/home/holger/Schreibtisch/fleet-carrier-Shrogaae ZL-Z b59-Tyriedgiae IV-N c20-1-FFDD06AE-9CBA-11F1-88D8-F9FA3A4687E5.csv;19;Blu Aip OU-A c3;Byae Aescs KL-K c22-7;499.106;126;19546;25000;764;646;1000;118;-8;Nein;;1
+2026-08-21T02:22:11+02:00;/home/holger/Schreibtisch/fleet-carrier-Shrogaae ZL-Z b59-Tyriedgiae IV-N c20-1-FFDD06AE-9CBA-11F1-88D8-F9FA3A4687E5.csv;20;Byae Aescs KL-K c22-7;Byae Aescs LD-A c14-36;497.473;126;19546;25000;646;529;1000;117;-9;Nein;;1
+2026-08-21T05:36:09+02:00;/home/holger/Schreibtisch/fleet-carrier-Shrogaae ZL-Z b59-Tyriedgiae IV-N c20-1-FFDD06AE-9CBA-11F1-88D8-F9FA3A4687E5.csv;21;Byae Aescs LD-A c14-36;Byae Aescs TM-M c7-7;496.351;125;19546;25000;529;412;1000;117;-8;Nein;;1
+2026-08-21T05:57:11+02:00;/home/holger/Schreibtisch/fleet-carrier-Shrogaae ZL-Z b59-Tyriedgiae IV-N c20-1-FFDD06AE-9CBA-11F1-88D8-F9FA3A4687E5.csv;22;Byae Aescs TM-M c7-7;Byae Aescs TV-Z b0;497.037;125;19546;25000;412;295;1000;117;-8;Ja;;1
+2026-08-21T06:42:10+02:00;/home/holger/Schreibtisch/fleet-carrier-Shrogaae ZL-Z b59-Tyriedgiae IV-N c20-1-FFDD06AE-9CBA-11F1-88D8-F9FA3A4687E5.csv;24;Blia Aescs XP-P e5-1;Blia Aescs NI-A c14-1;495.033;124;19546;25000;738;621;1000;117;-7;Nein;;1
+2026-08-21T07:03:08+02:00;/home/holger/Schreibtisch/fleet-carrier-Shrogaae ZL-Z b59-Tyriedgiae IV-N c20-1-FFDD06AE-9CBA-11F1-88D8-F9FA3A4687E5.csv;25;Blia Aescs NI-A c14-1;Blia Aescs TC-V d2-9;496.283;124;19546;25000;621;504;1000;117;-7;Nein;;1
+2026-08-21T07:25:11+02:00;/home/holger/Schreibtisch/fleet-carrier-Shrogaae ZL-Z b59-Tyriedgiae IV-N c20-1-FFDD06AE-9CBA-11F1-88D8-F9FA3A4687E5.csv;26;Blia Aescs TC-V d2-9;Prie Aim ZE-B b55-0;499.353;124;19546;25000;504;387;1000;117;-7;Nein;;1
+2026-08-21T07:47:10+02:00;/home/holger/Schreibtisch/fleet-carrier-Shrogaae ZL-Z b59-Tyriedgiae IV-N c20-1-FFDD06AE-9CBA-11F1-88D8-F9FA3A4687E5.csv;27;Prie Aim ZE-B b55-0;Pria Ain PO-I d9-4;497.700;124;19546;25000;387;270;1000;117;-7;Ja;;2

@@ -17,7 +17,7 @@ from pathlib import Path
 
 GITHUB_OWNER = "Faber38"
 GITHUB_REPO = "CTSVision"
-CURRENT_VERSION = "1.9"
+CURRENT_VERSION = "1.9.1"
 
 LATEST_RELEASE_API = (
     f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/releases/latest"

@@ -97,6 +97,27 @@ CTSVision does not make uncertain decisions.
 
 **Robustness before speed.**
 
+### Version 1.9.2
+✨ New
+- **More robust Carrier capacity OCR.**
+  If Carrier Capacity / Used Capacity cannot be read plausibly, CTSVision now retries the OCR
+  up to three times. The automation is stopped for safety only if the third attempt also fails.
+- **New controlled “Stop route at...” function.**
+  A running route can now be stopped cleanly either after the current jump or after any selectable
+  remaining jump destination.
+- **Stop destination selectable directly from the current route.**
+  CTSVision only lists destinations that are still pending and additionally marks the currently
+  active destination as the current jump.
+- **Data-safe completion before stopping the route.**
+  The selected jump is completed in full. CTSVision still waits for the confirmed `CarrierJump`,
+  tank check, automatic refueling if required, the four-minute Carrier cooldown, and the complete
+  Carrier History entry. Only then is the next jump prevented from starting.
+- **Stop destination can be changed while the route is running.**
+  “Stop route at...” can be opened again during the route to select a different remaining destination.
+- **Integrated help updated.**
+  The new route-stop function, OCR retry handling, and data-safe stop sequence are now documented
+  in the built-in German help.
+
 ### Version 1.9.1
 ✨ New
 - **Carrier and Tritium history added.**

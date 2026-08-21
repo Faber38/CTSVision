@@ -1,11 +1,11 @@
 {
     "journal_directory": "/home/holger/.steam/debian-installation/steamapps/compatdata/359320/pfx/drive_c/users/steamuser/Saved Games/Frontier Developments/Elite Dangerous",
-    "last_route": "/home/holger/Schreibtisch/route.csv",
-    "auto_refuel_enabled": false,
+    "last_route": "/home/holger/Schreibtisch/fleet-carrier-Shrogaae ZL-Z b59-Tyriedgiae IV-N c20-1-FFDD06AE-9CBA-11F1-88D8-F9FA3A4687E5.csv",
+    "auto_refuel_enabled": true,
     "carrier_refuel_threshold": 35,
     "tritium_list_position": 1,
     "monitor_power_off": false,
     "exit_elite_after_route": false,
     "shutdown_pc_after_route": false,
-    "dark_mode_enabled": false
+    "dark_mode_enabled": true
 }
