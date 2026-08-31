@@ -97,7 +97,7 @@ CTSVision does not make uncertain decisions.
 
 **Robustness before speed.**
 
-### Version 1.9.2
+### Version 1.9.3
 ✨ New
 - **More robust Carrier capacity OCR.**
   If Carrier Capacity / Used Capacity cannot be read plausibly, CTSVision now retries the OCR

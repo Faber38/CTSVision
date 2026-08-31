@@ -7,7 +7,7 @@ from datetime import datetime
 from pathlib import Path
 
 from PySide6.QtCore import Qt, Signal
-from app_paths import CARRIER_HISTORY_FILE
+from jump_history import JumpHistory
 
 from PySide6.QtWidgets import (
     QDialog, QFileDialog, QGridLayout, QGroupBox, QHBoxLayout, QLabel,
@@ -303,86 +303,8 @@ class ManualRoutePlanner(QDialog):
         self.check_result.clear()
 
     def _read_history_calibration(self):
-        """
-        Liest gültige Messungen aus der Carrier-Historie und berechnet
-        einen globalen Korrekturfaktor für die bestehende Verbrauchsformel.
-
-        Verwendet werden nur Datensätze mit:
-            - realem IST-Verbrauch > 0
-            - geplantem Verbrauch > 0
-
-        Faktor:
-            Summe(IST) / Summe(Plan)
-
-        Die gewichtete Berechnung über Gesamtsummen verhindert, dass
-        sehr kleine Sprünge denselben Einfluss bekommen wie lange Sprünge.
-        """
-
-        path = Path(CARRIER_HISTORY_FILE)
-
-        if not path.exists():
-            return None
-
-        valid = []
-
-        try:
-            with path.open("r", encoding="utf-8", newline="") as handle:
-                reader = csv.DictReader(handle, delimiter=";")
-
-                for row in reader:
-                    try:
-                        actual = float(
-                            str(row.get("Verbrauch IST t", ""))
-                            .strip()
-                            .replace(",", ".")
-                        )
-                        planned = float(
-                            str(row.get("Verbrauch geplant t", ""))
-                            .strip()
-                            .replace(",", ".")
-                        )
-                    except ValueError:
-                        continue
-
-                    if actual <= 0 or planned <= 0:
-                        continue
-
-                    valid.append((actual, planned))
-
-        except Exception:
-            return None
-
-        if not valid:
-            return {
-                "count": 0,
-                "factor": 1.0,
-                "average_percent_deviation": 0.0,
-            }
-
-        total_actual = sum(item[0] for item in valid)
-        total_planned = sum(item[1] for item in valid)
-
-        if total_planned <= 0:
-            factor = 1.0
-        else:
-            factor = total_actual / total_planned
-
-        percent_deviations = [
-            ((actual - planned) / planned) * 100.0
-            for actual, planned in valid
-        ]
-
-        average_percent_deviation = (
-            sum(percent_deviations) / len(percent_deviations)
-            if percent_deviations
-            else 0.0
-        )
-
-        return {
-            "count": len(valid),
-            "factor": factor,
-            "average_percent_deviation": average_percent_deviation,
-        }
+        """Liest die zentrale Verbrauchskalibrierung aus der Carrier-Historie."""
+        return JumpHistory().get_consumption_calibration()
 
     def apply_history_calibration(self):
         """Übernimmt die CTSVision-Historie als Korrektur der Verbrauchsprognose."""

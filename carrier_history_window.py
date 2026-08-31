@@ -5,8 +5,9 @@ import shutil
 from datetime import datetime
 from pathlib import Path
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QDate, Qt
 from PySide6.QtWidgets import (
+    QDateEdit,
     QDialog,
     QFileDialog,
     QFrame,
@@ -259,6 +260,46 @@ class CarrierHistoryWindow(QDialog):
 
         overview_layout.addLayout(overview_grid)
         main_layout.addWidget(overview)
+
+        period_panel = QFrame()
+        period_panel.setObjectName("panel")
+        period_layout = QVBoxLayout(period_panel)
+        period_layout.setContentsMargins(16, 13, 16, 13)
+        period_layout.setSpacing(10)
+
+        period_title = QLabel("Zeitraum auswerten")
+        period_title.setObjectName("sectionTitle")
+        period_layout.addWidget(period_title)
+
+        controls = QHBoxLayout()
+        controls.addWidget(QLabel("Von:"))
+        self.period_from = QDateEdit()
+        self.period_from.setCalendarPopup(True)
+        self.period_from.setDisplayFormat("dd.MM.yyyy")
+        controls.addWidget(self.period_from)
+
+        controls.addWidget(QLabel("Bis:"))
+        self.period_to = QDateEdit()
+        self.period_to.setCalendarPopup(True)
+        self.period_to.setDisplayFormat("dd.MM.yyyy")
+        controls.addWidget(self.period_to)
+
+        button = QPushButton("Zeitraum auswerten")
+        button.setObjectName("secondaryButton")
+        button.clicked.connect(self.evaluate_period)
+        controls.addWidget(button)
+        controls.addStretch()
+        period_layout.addLayout(controls)
+
+        grid = QGridLayout()
+        self.lbl_period_jumps = self._add_metric(grid, 0, 0, "Sprünge")
+        self.lbl_period_distance = self._add_metric(grid, 0, 1, "Strecke")
+        self.lbl_period_planned = self._add_metric(grid, 0, 2, "Planverbrauch")
+        self.lbl_period_actual = self._add_metric(grid, 0, 3, "IST-Verbrauch")
+        self.lbl_period_deviation = self._add_metric(grid, 0, 4, "Abweichung")
+        self.lbl_period_refuels = self._add_metric(grid, 0, 5, "Nachtankvorgänge")
+        period_layout.addLayout(grid)
+        main_layout.addWidget(period_panel)
 
         table_panel = QFrame()
         table_panel.setObjectName("panel")
@@ -599,6 +640,9 @@ class CarrierHistoryWindow(QDialog):
         )
         self.lbl_refuels.setText(self._format_int(refuel_count))
 
+        self._all_rows = rows
+        self._update_period(rows)
+
         self._display_rows = list(reversed(rows))
         self.table.setRowCount(len(self._display_rows))
 
@@ -655,6 +699,78 @@ class CarrierHistoryWindow(QDialog):
             f"Historie geladen · {self.history_file}"
         )
 
+    @staticmethod
+    def _row_date(row: dict[str, str]):
+        try:
+            return datetime.fromisoformat(str(row.get("Zeit", "")).strip()).date()
+        except (ValueError, TypeError):
+            return None
+
+    def _update_period(self, rows: list[dict[str, str]]) -> None:
+        dates = [d for row in rows if (d := self._row_date(row)) is not None]
+        if not dates:
+            self._clear_period()
+            return
+
+        first, last = min(dates), max(dates)
+        qfirst = QDate(first.year, first.month, first.day)
+        qlast = QDate(last.year, last.month, last.day)
+
+        self.period_from.setDateRange(qfirst, qlast)
+        self.period_to.setDateRange(qfirst, qlast)
+
+        if not getattr(self, "_period_initialized", False):
+            self.period_from.setDate(qfirst)
+            self.period_to.setDate(qlast)
+            self._period_initialized = True
+
+        self.evaluate_period()
+
+    def evaluate_period(self) -> None:
+        rows = getattr(self, "_all_rows", [])
+        date_from = self.period_from.date().toPython()
+        date_to = self.period_to.date().toPython()
+
+        if date_from > date_to:
+            QMessageBox.warning(
+                self, "Ungültiger Zeitraum",
+                "Das Von-Datum darf nicht nach dem Bis-Datum liegen."
+            )
+            return
+
+        selected = [
+            row for row in rows
+            if (d := self._row_date(row)) is not None and date_from <= d <= date_to
+        ]
+
+        if not selected:
+            self._clear_period()
+            return
+
+        distances = [v for row in selected if (v := self._to_float(row.get("Distanz Lj", ""))) is not None]
+        planned = [v for row in selected if (v := self._to_int(row.get("Verbrauch geplant t", ""))) is not None]
+        actual = [v for row in selected if (v := self._to_int(row.get("Verbrauch IST t", ""))) is not None]
+        deviations = [v for row in selected if (v := self._to_int(row.get("Abweichung t", ""))) is not None]
+        refuels = sum(
+            1 for row in selected
+            if str(row.get("Nachgetankt nach Sprung", "")).strip().lower() == "ja"
+        )
+
+        self.lbl_period_jumps.setText(self._format_int(len(selected)))
+        self.lbl_period_distance.setText(self._format_float(sum(distances) if distances else None, " Lj"))
+        self.lbl_period_planned.setText(self._format_int(sum(planned) if planned else None, " t"))
+        self.lbl_period_actual.setText(self._format_int(sum(actual) if actual else None, " t"))
+        self.lbl_period_deviation.setText(self._format_int(sum(deviations) if deviations else None, " t"))
+        self.lbl_period_refuels.setText(self._format_int(refuels))
+
+    def _clear_period(self) -> None:
+        for label in (
+            self.lbl_period_jumps, self.lbl_period_distance,
+            self.lbl_period_planned, self.lbl_period_actual,
+            self.lbl_period_deviation, self.lbl_period_refuels,
+        ):
+            label.setText("-")
+
     def _open_jump_details(self, row_index: int, column_index: int) -> None:
         """Öffnet beim Anklicken einer Tabellenzeile die vollständigen Sprungdaten."""
 
@@ -680,6 +796,8 @@ class CarrierHistoryWindow(QDialog):
         self.lbl_refuels.setText("-")
         self.table.setRowCount(0)
         self._display_rows = []
+        self._all_rows = []
+        self._clear_period()
         self.lbl_header_status.setText("Keine Daten")
 
     # --------------------------------------------------

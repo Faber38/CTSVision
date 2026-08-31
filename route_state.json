@@ -1,6 +1,6 @@
 {
-    "route_file": "/home/holger/Schreibtisch/fleet-carrier-Shrogaae ZL-Z b59-Tyriedgiae IV-N c20-1-FFDD06AE-9CBA-11F1-88D8-F9FA3A4687E5.csv",
-    "route_signature": "cacca3266ba1480fb2a47d17af690a7a9e80ad32aa78bfd2ca91a01ce872a8a9",
-    "current_index": 27,
-    "total_jumps": 53
+    "route_file": "/home/holger/Schreibtisch/manual_route.csv",
+    "route_signature": "a44a586668085b8da9db22a56e34654e502edb05082dbfcebdb6b6763b5b0b2f",
+    "current_index": 1,
+    "total_jumps": 1
 }

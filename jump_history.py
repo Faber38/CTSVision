@@ -131,6 +131,70 @@ class JumpHistory:
 
             writer.writerow(row)
 
+
+    def get_consumption_calibration(self) -> dict[str, float | int] | None:
+        """
+        Wertet die komplette Carrier-Historie für eine Verbrauchskalibrierung aus.
+
+        Berücksichtigt werden nur Datensätze mit positivem IST- und Planverbrauch.
+        Faktor = Summe(IST) / Summe(Plan)
+        """
+        if not self.path.exists():
+            return None
+
+        valid: list[tuple[float, float]] = []
+
+        try:
+            with self.path.open("r", encoding="utf-8", newline="") as handle:
+                reader = csv.DictReader(handle, delimiter=";")
+
+                for row in reader:
+                    try:
+                        actual = float(
+                            str(row.get("Verbrauch IST t", "")).strip().replace(",", ".")
+                        )
+                        planned = float(
+                            str(row.get("Verbrauch geplant t", "")).strip().replace(",", ".")
+                        )
+                    except (TypeError, ValueError):
+                        continue
+
+                    if actual <= 0 or planned <= 0:
+                        continue
+
+                    valid.append((actual, planned))
+
+        except (OSError, csv.Error):
+            return None
+
+        if not valid:
+            return {
+                "count": 0,
+                "factor": 1.0,
+                "average_percent_deviation": 0.0,
+            }
+
+        total_actual = sum(actual for actual, _planned in valid)
+        total_planned = sum(planned for _actual, planned in valid)
+        factor = total_actual / total_planned if total_planned > 0 else 1.0
+
+        percent_deviations = [
+            ((actual - planned) / planned) * 100.0
+            for actual, planned in valid
+        ]
+
+        average_percent_deviation = (
+            sum(percent_deviations) / len(percent_deviations)
+            if percent_deviations
+            else 0.0
+        )
+
+        return {
+            "count": len(valid),
+            "factor": factor,
+            "average_percent_deviation": average_percent_deviation,
+        }
+
     def latest_for_route(self, route_file: str | Path) -> dict[str, str] | None:
         """
         Liefert den letzten gespeicherten Datensatz derselben Routendatei.

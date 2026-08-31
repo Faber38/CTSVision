@@ -17,6 +17,10 @@ from PySide6.QtWidgets import (
 )
 
 from route_manager import RouteManager
+from jump_history import JumpHistory
+
+MIN_HISTORY_ENTRIES_FOR_ESTIMATE = 5
+RECOMMENDED_HISTORY_ENTRIES_FOR_ESTIMATE = 10
 
 
 class RouteInfoWindow(QDialog):
@@ -114,7 +118,31 @@ class RouteInfoWindow(QDialog):
 
         self.lbl_jumps = self._add_metric(overview_grid, 0, 0, "Sprünge gesamt")
         self.lbl_distance = self._add_metric(overview_grid, 0, 1, "Gesamtstrecke")
-        self.lbl_tritium = self._add_metric(overview_grid, 0, 2, "Tritiumbedarf")
+        tritium_wrapper = QWidget()
+        tritium_layout = QVBoxLayout(tritium_wrapper)
+        tritium_layout.setContentsMargins(0, 0, 0, 0)
+        tritium_layout.setSpacing(2)
+
+        tritium_caption = QLabel("TRITIUMBEDARF")
+        tritium_caption.setObjectName("metricCaption")
+
+        self.lbl_tritium = QLabel("-")
+        self.lbl_tritium.setObjectName("metricValue")
+
+        self.lbl_tritium_estimate_caption = QLabel("CTSVISION-SCHÄTZWERT")
+        self.lbl_tritium_estimate_caption.setObjectName("estimateCaption")
+
+        self.lbl_tritium_estimate = QLabel("Noch nicht genügend Messdaten")
+        self.lbl_tritium_estimate.setObjectName("estimateValue")
+        self.lbl_tritium_estimate.setWordWrap(True)
+
+        tritium_layout.addWidget(tritium_caption)
+        tritium_layout.addWidget(self.lbl_tritium)
+        tritium_layout.addSpacing(5)
+        tritium_layout.addWidget(self.lbl_tritium_estimate_caption)
+        tritium_layout.addWidget(self.lbl_tritium_estimate)
+
+        overview_grid.addWidget(tritium_wrapper, 0, 2)
         self.lbl_duration = self._add_metric(overview_grid, 0, 3, "Geplante Dauer")
 
         overview_layout.addLayout(overview_grid)
@@ -356,6 +384,18 @@ class RouteInfoWindow(QDialog):
                 font-weight: 700;
             }
 
+            QLabel#estimateCaption {
+                color: #6f8496;
+                font-size: 7pt;
+                font-weight: 700;
+            }
+
+            QLabel#estimateValue {
+                color: #9ee6ad;
+                font-size: 9pt;
+                font-weight: 700;
+            }
+
             QLabel#sectionTitle {
                 color: #8ec7ef;
                 font-size: 10.5pt;
@@ -521,6 +561,18 @@ class RouteInfoWindow(QDialog):
             QLabel#metricValue {
                 color: #173b57;
                 font-size: 10.5pt;
+                font-weight: 700;
+            }
+
+            QLabel#estimateCaption {
+                color: #7b8da0;
+                font-size: 7pt;
+                font-weight: 700;
+            }
+
+            QLabel#estimateValue {
+                color: #2f6f4e;
+                font-size: 9pt;
                 font-weight: 700;
             }
 
@@ -759,6 +811,8 @@ class RouteInfoWindow(QDialog):
         self.lbl_jumps.setText("-")
         self.lbl_distance.setText("-")
         self.lbl_tritium.setText("-")
+        self.lbl_tritium_estimate.setText("Noch nicht genügend Messdaten")
+        self.lbl_tritium_estimate.setToolTip("")
         self.lbl_duration.setText("-")
 
         self.progress_bar.setValue(0)
@@ -782,6 +836,53 @@ class RouteInfoWindow(QDialog):
 
     # --------------------------------------------------
 
+
+    def _update_history_estimate(self, planned_fuel: int) -> None:
+        """Aktualisiert den CTSVision-Schätzwert aus der Carrier-Historie."""
+
+        calibration = JumpHistory().get_consumption_calibration()
+
+        if calibration is None:
+            self.lbl_tritium_estimate.setText("Historie nicht verfügbar")
+            self.lbl_tritium_estimate.setToolTip(
+                "Die Carrier-Historie konnte nicht gelesen werden."
+            )
+            return
+
+        count = int(calibration["count"])
+
+        if count < MIN_HISTORY_ENTRIES_FOR_ESTIMATE:
+            self.lbl_tritium_estimate.setText(
+                f"Noch nicht genügend Messdaten "
+                f"({count}/{MIN_HISTORY_ENTRIES_FOR_ESTIMATE})"
+            )
+            self.lbl_tritium_estimate.setToolTip(
+                "Der CTSVision-Schätzwert wird ab 5 gültigen "
+                "Verbrauchsmessungen angezeigt."
+            )
+            return
+
+        factor = float(calibration["factor"])
+        average_deviation = float(calibration["average_percent_deviation"])
+        estimated_fuel = max(0, int(round(planned_fuel * factor)))
+
+        confidence = (
+            "erste Datenbasis"
+            if count < RECOMMENDED_HISTORY_ENTRIES_FOR_ESTIMATE
+            else "gute Datenbasis"
+        )
+
+        self.lbl_tritium_estimate.setText(
+            f"ca. {self._format_int(estimated_fuel, ' t')} · {count} Messungen"
+        )
+        self.lbl_tritium_estimate.setToolTip(
+            "CTSVision-Schätzung aus der Carrier-Historie\n"
+            f"Kalibrierfaktor: {factor:.4f}\n"
+            f"Ø Abweichung IST zu Plan: {average_deviation:+.2f} %\n"
+            f"Datenbasis: {confidence}\n\n"
+            "Der originale Tritiumbedarf der Routendatei bleibt unverändert."
+        )
+
     def update_route(self, manager: RouteManager) -> None:
         """Übernimmt sämtliche Daten aus dem RouteManager."""
 
@@ -798,9 +899,11 @@ class RouteInfoWindow(QDialog):
         self.lbl_distance.setText(
             self._format_float(float(info["total_distance"]), " Lj")
         )
+        total_fuel_required = int(info["total_fuel_required"])
         self.lbl_tritium.setText(
-            self._format_int(int(info["total_fuel_required"]), " t")
+            self._format_int(total_fuel_required, " t")
         )
+        self._update_history_estimate(total_fuel_required)
         self.lbl_duration.setText(
             self._format_duration(int(info["total_duration_minutes"]))
         )

@@ -259,14 +259,30 @@ class AutomationWorker(QObject):
                 f"{current}/{maximum}"
             )
 
-        # Elite zeigt nominell 25000 als Maximalwert. Der aktuelle belegte
-        # Wert kann durch installierte Carrier-Dienste über 25000 liegen.
+        # Elite zeigt nominell 25000 als Maximalwert.
+        #
+        # PaddleOCR hängt bei diesem kleinen Anzeigefeld gelegentlich ein
+        # zusätzlich erkanntes Zeichen direkt vor die 25000, z. B.:
+        #
+        #     22387 / 725000
+        #
+        # Der eigentliche Maximalwert 25000 ist darin eindeutig als kompletter
+        # Endblock enthalten. Nur genau diesen eng begrenzten OCR-Fehler
+        # korrigieren wir. Andere Maximalwerte bleiben weiterhin ein Fehler.
         if maximum != 25000:
-            self_text = f"{current}/{maximum}"
-            raise RuntimeError(
-                "OCR lieferte einen unerwarteten Maximalwert für die "
-                f"Carrier-Kapazität: {self_text}"
-            )
+            maximum_text = str(maximum)
+
+            if (
+                len(maximum_text) > 5
+                and maximum_text.endswith("25000")
+            ):
+                maximum = 25000
+            else:
+                self_text = f"{current}/{maximum}"
+                raise RuntimeError(
+                    "OCR lieferte einen unerwarteten Maximalwert für die "
+                    f"Carrier-Kapazität: {self_text}"
+                )
 
         return current, maximum
 
@@ -3003,7 +3019,8 @@ class AutomationWindow(QMainWindow):
         self,
         text: str,
     ) -> None:
-        self.status_log.append(text)
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        self.status_log.append(f"[{timestamp}] {text}")
 
     # --------------------------------------------------
 
