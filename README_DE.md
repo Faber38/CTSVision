@@ -97,6 +97,14 @@ CTSVision trifft keine unsicheren Entscheidungen.
 
 **Robustheit vor Geschwindigkeit.**
 
+### Version 1.9.4
+- **Carrier-Kapazität per OCR:** Ausgewertet wird genau ein Kapazitäts-Zahlenpaar; Beschriftungen wie „USED CAPACITY“ und „EINHEITEN“ erzeugen keine zusätzlichen Ziffern. `233872/5000` wird auch mit Beschriftungen zu `23387/25000` korrigiert. Eine einzelne Extraziffer vor dem Maximum (etwa `22387/725000`) bleibt unterstützt. Werte außerhalb 0–25.000, mehrere Angaben, unbekannter Text und fehlende Trenner werden sicher abgewiesen.
+- **Linux-Installation:** Der Abschlusstext wird korrekt ausgegeben und nach erfolgreicher Installation der Abhängigkeiten nicht mehr als Shell-Befehle ausgeführt.
+- **Carrier-Zielkorrektur:** Wird „Carrier-Ziel festlegen“ nicht erkannt, prüft CTSVision das Carrier-Symbol und klickt es höchstens einmal an. Nach einer Sekunde Wartezeit wird das Ziel erneut geprüft. Ohne erfolgreiche Erkennung erfolgt kein Sprungklick. Stop wird berücksichtigt.
+- **Referenzaufnahme:** Im Sprung-/Vision-Wizard `galaxiekarte_carrier_symbol` aufnehmen: Machtspiele-Informationen anzeigen, Maus über das Carrier-Symbol oben rechts bewegen, nicht klicken. Das Symbol eng ohne Tooltip aufnehmen. Vorhandene Bilder und Koordinaten bleiben erhalten. Die mitgelieferte Vorschau ersetzt keine eigene Kalibrierung.
+- **Update von v1.9.3:** Der Wizard ergänzt den neuen Eintrag im Speicher, auch wenn der alte Updater den bisherigen Katalog beibehält. Das Release-ZIP enthält keine persönlichen Einstellungen, Routenstände, Routen, Logs oder Referenzaufnahmen.
+- **Künftige Updates:** Persönliche Konfiguration, Einstellungen, Logs und CSV-Routen in Unterordnern sind ausdrücklich geschützt, auch beim Rollback. Der lokale Paketbau erhält vorhandene Releasearchive.
+
 ### Version 1.9.3
 ✨ Neu
 - **Robustere OCR-Erkennung der Carrier-Kapazität.**

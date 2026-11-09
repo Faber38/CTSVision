@@ -252,6 +252,15 @@
     "title": "Aktionsschaltfläche B"
   },
   {
+    "name": "galaxiekarte_carrier_symbol",
+    "filename": "galaxiekarte_carrier_symbol.png",
+    "template": "assets/templates/galaxiekarte_carrier_symbol.png",
+    "description": "In der Galaxiekarte bei ausgewähltem Zielsystem und sichtbaren Machtspiele-Informationen die Maus auf das Carrier-Symbol oben rechts bewegen, ohne zu klicken. Nur das Symbol eng und mittig aufnehmen, ohne Tooltip oder dynamischen Hintergrund. Die Referenz dient zur sicheren Erkennung und zum einmaligen Korrekturklick auf System-Informationen.",
+    "group": "Galaxiekarte",
+    "group_order": 4,
+    "title": "Carrier-Symbol – Informationsbereich korrigieren"
+  },
+  {
     "name": "galaxiekarte_carrier_target",
     "filename": "galaxiekarte_carrier_target.png",
     "template": "assets/templates/galaxiekarte_carrier_target.png",

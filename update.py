@@ -17,7 +17,7 @@ from pathlib import Path
 
 GITHUB_OWNER = "Faber38"
 GITHUB_REPO = "CTSVision"
-CURRENT_VERSION = "1.9.2"
+CURRENT_VERSION = "1.9.4"
 
 LATEST_RELEASE_API = (
     f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/releases/latest"
@@ -33,6 +33,9 @@ PROTECTED_NAMES = {
     ".venv",
     "venv",
     "route_state.json",
+    "config.json",
+    "settings.json",
+    "logs",
 }
 PROTECTED_SUFFIXES = {".csv"}
 
@@ -136,10 +139,7 @@ def _is_protected(relative_path: Path) -> bool:
     if first in PROTECTED_NAMES:
         return True
 
-    if (
-        len(relative_path.parts) == 1
-        and relative_path.suffix.lower() in PROTECTED_SUFFIXES
-    ):
+    if relative_path.suffix.lower() in PROTECTED_SUFFIXES:
         return True
 
     return False
@@ -183,24 +183,23 @@ def _copy_release(source_root: Path, install_dir: Path) -> None:
 
 
 def _restore_backup(backup_dir: Path, install_dir: Path) -> None:
-    for current in install_dir.iterdir():
-        relative = Path(current.name)
+    # Verzeichnisse nicht rekursiv löschen: Darin können geschützte
+    # CSV-Routen liegen, auch solche, die erst nach dem Backup entstanden.
+    for current in sorted(
+        install_dir.rglob("*"), key=lambda path: len(path.parts), reverse=True
+    ):
+        relative = current.relative_to(install_dir)
 
         if _is_protected(relative):
             continue
 
-        if current.is_dir():
-            shutil.rmtree(current)
+        if current.is_dir() and not current.is_symlink():
+            if not any(current.iterdir()):
+                current.rmdir()
         else:
             current.unlink()
 
-    for source in backup_dir.iterdir():
-        destination = install_dir / source.name
-
-        if source.is_dir():
-            shutil.copytree(source, destination)
-        else:
-            shutil.copy2(source, destination)
+    _copy_release(backup_dir, install_dir)
 
 
 def _extract_release_root(zip_path: Path, temp_dir: Path) -> Path:

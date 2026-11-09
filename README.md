@@ -97,6 +97,14 @@ CTSVision does not make uncertain decisions.
 
 **Robustness before speed.**
 
+### Version 1.9.4
+- **Carrier capacity OCR:** Only a single capacity number pair is parsed; labels such as “USED CAPACITY” and “EINHEITEN” cannot add digits. `233872/5000` is repaired to `23387/25000`, including with labels. A single extra digit before the maximum (for example `22387/725000`) remains supported. Values outside 0–25,000, multiple readings, unknown text and missing separators cause a safe rejection rather than guessing.
+- **Linux installer:** The completion instructions are printed correctly; they no longer run as shell commands after successful dependency installation.
+- **Carrier target correction:** If “Set Carrier Destination” is not recognized, CTSVision checks the Carrier icon and clicks it at most once. After a one-second wait, it checks the destination again. No jump click is sent without successful recognition; Stop remains available.
+- **Reference setup:** In the jump/vision wizard, capture `galaxiekarte_carrier_symbol` with the pointer over the top-right Carrier icon, without clicking, while Powerplay information is visible. Use a tight crop without tooltips. Existing images and coordinates remain unchanged. A preview is included; each installation needs its own calibrated reference.
+- **Updates from v1.9.3:** The new wizard entry is added in memory even when the old updater retains the previous reference catalog. The release ZIP contains no personal settings, route state, routes, logs or reference captures.
+- **Future updates:** Explicit protection for personal configuration, settings, logs and CSV routes in subdirectories, including rollback. Existing release archives are retained by the local build script.
+
 ### Version 1.9.3
 ✨ New
 - **More robust Carrier capacity OCR.**

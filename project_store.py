@@ -20,6 +20,17 @@ REFERENCE_CATALOG_PATH = REFERENCE_CATALOG_FILE
 NAVIGATION_PATH = NAVIGATION_FILE
 
 
+CARRIER_SYMBOL_REFERENCE = {
+    "name": "galaxiekarte_carrier_symbol",
+    "filename": "galaxiekarte_carrier_symbol.png",
+    "template": "assets/templates/galaxiekarte_carrier_symbol.png",
+    "description": "In der Galaxiekarte bei ausgewähltem Zielsystem und sichtbaren Machtspiele-Informationen die Maus auf das Carrier-Symbol oben rechts bewegen, ohne zu klicken. Nur das Symbol eng und mittig aufnehmen, ohne Tooltip oder dynamischen Hintergrund. Die Referenz dient zur sicheren Erkennung und zum einmaligen Korrekturklick auf System-Informationen.",
+    "group": "Galaxiekarte",
+    "group_order": 4,
+    "title": "Carrier-Symbol – Informationsbereich korrigieren"
+}
+
+
 def create_empty_config() -> dict[str, Any]:
     """Erzeugt eine leere CTS-Vision-Konfiguration."""
 
@@ -98,6 +109,14 @@ def load_reference_catalog() -> list[dict[str, Any]]:
 
     if not isinstance(catalog, list):
         raise RuntimeError("reference_catalog.json muss eine JSON-Liste enthalten.")
+
+    # v1.9.3 schützt config/ beim Update. Den fehlenden Eintrag deshalb
+    # nur im geladenen Katalog ergänzen; keine Dateien oder Koordinaten ändern.
+    if not any(
+        isinstance(entry, dict) and entry.get("name") == CARRIER_SYMBOL_REFERENCE["name"]
+        for entry in catalog
+    ):
+        catalog.append(CARRIER_SYMBOL_REFERENCE.copy())
 
     valid_entries: list[dict[str, Any]] = []
 

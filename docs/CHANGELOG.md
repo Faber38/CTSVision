@@ -8,6 +8,38 @@ Das Projekt orientiert sich an den Empfehlungen von
 
 ---
 
+## [1.9.4]
+
+- Carrier-Kapazitätsparser wertet genau ein Zahlenpaar aus. Beschriftungen wie „USED CAPACITY“, „KAPAZITÄT“, „EINHEITEN“ und „UNITS“ werden vor der Ziffernnormalisierung abgegrenzt.
+- Der verschobene Trenner `233872/5000` wird weiterhin als `23387/25000` erkannt, auch mit Beschriftungen. Eine einzelne zusätzliche Ziffer vor `25000` bleibt korrigierbar. Mehrere Angaben, weitere Zahlen, fehlende Trenner, unbekannte Beschriftungen und nicht unterstützte Fehlerformen führen zum sicheren Abbruch.
+- Der bisherige Grenzwert 30.000 entfällt: Gültig sind 0 bis 25.000 für das Feld Used Capacity / 25.000. Dies ist nicht die Gesamtmasse des Carriers. Frontier dokumentiert selbst bei Überfüllung eine Anzeige von 25.000/25.000 ([Fleet Carriers Update – Patch 3](https://store.steampowered.com/news/posts/?appids=359320&enddate=1594916338&feed=steam_community_announcements)).
+- `install.sh` gibt den Abschlusstext per Here-Document aus. Die Schritte für virtuelle Umgebung und Abhängigkeiten bleiben unverändert; Fehler beim Installieren brechen weiterhin ab.
+
+- Einmalige, visuell abgesicherte Carrier-Zielkorrektur mit einer Sekunde Wartezeit und erneuter Zielprüfung. Bei unsicherer Erkennung kein Sprungklick; Stop wird berücksichtigt.
+- Neue Referenz `galaxiekarte_carrier_symbol` samt Vorschau und Aufnahmehinweisen. Fehlende Katalogeinträge werden beim Laden im Speicher ergänzt, ohne persönliche Bilder oder Koordinaten zu ändern.
+- Update-Kompatibilität mit v1.9.3: Dessen Installer behält `config/` bei; der neue Programmcode ergänzt den Wizard-Eintrag unabhängig davon.
+- Schutz von `config.json`, `settings.json`, `route_state.json`, `references/`, `logs/` und CSV-Routen auch in Unterordnern. Rollback entfernt keine geschützten CSV-Routen.
+- Releasebau über explizites Manifest mit Inhalts-, Syntax- und Versionsprüfung. Vorhandene Releaseverzeichnisse und ZIPs werden nicht überschrieben.
+- Paket enthält keine persönlichen Konfigurationen, Referenzaufnahmen, CSV-Routen oder Carrier-Historie. Diese Paketregel schützt bereits beim Update durch den alten v1.9.3-Installer.
+
+### Nach dem Update
+
+Im Sprung-Wizard das Carrier-Symbol bei sichtbaren Machtspiele-Informationen mit darüber positionierter Maus eng aufnehmen, ohne zu klicken. Vorhandene eigene Symbolaufnahmen bleiben erhalten. Ohne passende Aufnahme bricht ein erforderlicher Korrekturversuch sicher ab.
+
+### Lokale Freigabeprüfung
+
+`PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p 'test_capacity_parser.py' -v`
+
+`PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p 'test_install_script.py' -v`
+
+`PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p 'test_carrier_target.py' -v`
+
+`PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p 'test_release_update.py' -v`
+
+Die Update-Integrationstests benötigen die lokalen ZIPs `release/CTSVision_v1.9.3.zip` (Originalversion) und `release/CTSVision_v1.9.4.zip` (mit `bash create_release.sh` erstellt). Sie verwenden temporäre Installationen und simulieren nur Prozessende und Neustart; die eigentliche Kopier- und Wiederherstellungslogik wird ausgeführt.
+
+---
+
 ## [1.5.0] - 2026-07-24
 
 ### Hinzugefügt

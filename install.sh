@@ -29,7 +29,8 @@ echo
 echo "Installiere benötigte Bibliotheken..."
 pip install -r requirements.txt
 
-echo
+cat <<'CTSVISION_INSTALL_COMPLETE'
+
 =========================================
 Installation erfolgreich abgeschlossen.
 
@@ -46,3 +47,4 @@ die eigene Bildschirmauflösung erstellt werden.
 Viel Spaß!
 
 =========================================
+CTSVISION_INSTALL_COMPLETE

@@ -51,6 +51,7 @@ from help_window import HelpWindow
 from keyboard_control import press_key, type_text
 from menu_controller import MenuController
 from mouse_control import (
+    MouseControlError,
     click_reference_center,
     left_click,
     move_to_reference_center,
@@ -228,63 +229,52 @@ class AutomationWorker(QObject):
         cls,
         text: str,
     ) -> tuple[int, int]:
-        """Liest einen Wert wie 23837 / 25000 aus dem OCR-Text."""
+        """Liest genau eine Kapazitätsangabe mit bekanntem Maximum 25000.
 
-        normalized = cls._normalize_capacity_text(text)
-
-        match = re.search(
-            r"(\d{4,6})\s*/\s*(\d{4,6})",
-            normalized,
+        Beschriftungen werden vor der OCR-Normalisierung abgegrenzt.
+        Repariert werden nur ein zusätzliches Zeichen vor dem Maximum
+        oder dessen um eine Stelle nach rechts verschobener Trenner.
+        Ohne Trenner oder bei zusätzlichen Zahlen bleibt der Text unsicher.
+        """
+        match = re.fullmatch(
+            r"\s*(?:(?:USED\s+CAPACITY|BELEGTE\s+KAPAZITÄT|KAPAZITÄT)\s*:?\s*)?"
+            r"(?P<used>[0-9OIL]{1,6})\s*[/|\\:]\s*"
+            r"(?P<maximum>[0-9OIL]{4,6})"
+            r"\s*(?:EINHEITEN|UNITS?)?\s*",
+            text.upper(),
         )
-
-        if match is None:
-            numbers = re.findall(r"\d{4,6}", normalized)
-
-            if len(numbers) < 2:
-                raise RuntimeError(
-                    "Carrier-Kapazität konnte nicht aus dem OCR-Text gelesen "
-                    f"werden: {text!r}"
-                )
-
-            current = int(numbers[0])
-            maximum = int(numbers[1])
-
-        else:
-            current = int(match.group(1))
-            maximum = int(match.group(2))
-
-        if current <= 0 or maximum <= 0:
-            raise RuntimeError(
-                "OCR lieferte eine ungültige Carrier-Kapazität: "
-                f"{current}/{maximum}"
-            )
-
-        # Elite zeigt nominell 25000 als Maximalwert.
-        #
-        # PaddleOCR hängt bei diesem kleinen Anzeigefeld gelegentlich ein
-        # zusätzlich erkanntes Zeichen direkt vor die 25000, z. B.:
-        #
-        #     22387 / 725000
-        #
-        # Der eigentliche Maximalwert 25000 ist darin eindeutig als kompletter
-        # Endblock enthalten. Nur genau diesen eng begrenzten OCR-Fehler
-        # korrigieren wir. Andere Maximalwerte bleiben weiterhin ein Fehler.
-        if maximum != 25000:
-            maximum_text = str(maximum)
-
-            if (
-                len(maximum_text) > 5
-                and maximum_text.endswith("25000")
+        if match is not None:
+            used_raw, maximum_raw = match.group("used", "maximum")
+            # Keine aus reinen Buchstaben konstruierten Zahlen akzeptieren.
+            if any(c.isdigit() for c in used_raw) and any(
+                c.isdigit() for c in maximum_raw
             ):
-                maximum = 25000
-            else:
-                self_text = f"{current}/{maximum}"
-                raise RuntimeError(
-                    "OCR lieferte einen unerwarteten Maximalwert für die "
-                    f"Carrier-Kapazität: {self_text}"
-                )
+                used = cls._normalize_capacity_text(used_raw)
+                maximum = cls._normalize_capacity_text(maximum_raw)
+                current_text = None
+                if maximum == "25000":
+                    current_text = used
+                elif re.fullmatch(r"[1-9]25000", maximum):
+                    # Bekannter Fehler: 22387 / 725000 (eine Extraziffer).
+                    current_text = used
+                elif maximum == "5000" and used.endswith("2"):
+                    # Nur exakt eine verschobene Ziffer: 233872 / 5000.
+                    current_text = used[:-1]
 
-        return current, maximum
+                if current_text and (
+                    current_text == "0" or not current_text.startswith("0")
+                ):
+                    current = int(current_text)
+                    # Das Feld zeigt Used Capacity / 25000, nicht die
+                    # Gesamtmasse des Carriers. Auch Überfüllung wird laut
+                    # Frontier (Fleet Carriers Patch 3) als 25000/25000 angezeigt.
+                    if 0 <= current <= 25000:
+                        return current, 25000
+
+        raise RuntimeError(
+            "Carrier-Kapazität konnte nicht eindeutig als Wert zwischen "
+            f"0 und 25000 gelesen werden: {text!r}"
+        )
 
     def _read_carrier_capacity(
         self,
@@ -669,6 +659,107 @@ class AutomationWorker(QObject):
         self.log_message.emit("Stop wurde angefordert.")
 
         return True
+
+    def _select_carrier_target(self, vision: Vision) -> bool:
+        """Prüft das Sprungziel mit höchstens einem Korrekturklick.
+
+        False bedeutet Stop; Erkennungsfehler werden vom bestehenden
+        Fehlerpfad in run() einschließlich Vergleichsbild behandelt.
+        """
+        target = "galaxiekarte_carrier_target"
+        symbol = "galaxiekarte_carrier_symbol"
+
+        for attempt in range(2):
+            if self._check_stop():
+                return False
+
+            self.log_message.emit(
+                "Prüfe „Carrier-Ziel festlegen“ "
+                + ("nach der Korrektur..." if attempt else "vor dem Sprungklick...")
+            )
+            move_to_reference_center(target, after_delay=0.75)
+            deadline = time.monotonic() + 10.0
+            best_similarity = 0.0
+            matched = False
+
+            while time.monotonic() < deadline:
+                if self._check_stop():
+                    return False
+                matched, similarity = vision.check(target, threshold=0.94)
+                best_similarity = max(best_similarity, similarity)
+                if matched:
+                    break
+                time.sleep(0.25)
+
+            self.log_message.emit(
+                f"Carrier-Ziel-Anzeige: {best_similarity * 100:.2f} % "
+                "(Grenzwert 94 %)."
+            )
+            if self._check_stop():
+                return False
+            if matched:
+                self.log_message.emit(
+                    "„Carrier-Ziel festlegen“ sicher erkannt. Sprungklick wird ausgeführt."
+                )
+                if self._check_stop():
+                    return False
+                left_click(after_delay=2.00)
+                return True
+
+            if attempt == 1:
+                raise RuntimeError(
+                    "„Carrier-Ziel festlegen“ auch nach einem Korrekturklick "
+                    "nicht sicher erkannt. Abbruch ohne Sprungklick. "
+                    f"Bester Wert: {best_similarity * 100:.2f} % (Grenzwert 94 %)."
+                )
+
+            self.log_message.emit(
+                "Carrier-Ziel nicht erkannt. Prüfe das Carrier-Symbol "
+                "für den einmaligen Korrekturklick..."
+            )
+            try:
+                move_to_reference_center(symbol, after_delay=0.75)
+                if self._check_stop():
+                    return False
+                symbol_matched, similarity = vision.check(symbol, threshold=0.95)
+            except (KeyError, FileNotFoundError) as exc:
+                raise RuntimeError(
+                    "Carrier-Symbol-Referenz fehlt. Bitte „galaxiekarte_carrier_symbol“ "
+                    "im Sprung-Wizard aufnehmen. Abbruch ohne Sprungklick."
+                ) from exc
+            except MouseControlError as exc:
+                raise RuntimeError(
+                    "Carrier-Symbol konnte nicht angesteuert werden. "
+                    "Bitte Elite-Fenster und Referenz „galaxiekarte_carrier_symbol“ "
+                    "im Sprung-Wizard prüfen. Abbruch ohne Sprungklick. "
+                    f"Ursache: {exc}"
+                ) from exc
+
+            self.log_message.emit(
+                f"Carrier-Symbol: {similarity * 100:.2f} % (Grenzwert 95 %)."
+            )
+            if self._check_stop():
+                return False
+            if not symbol_matched:
+                raise RuntimeError(
+                    "Carrier-Symbol nicht sicher erkannt. "
+                    "Abbruch ohne Korrektur- oder Sprungklick."
+                )
+            self.log_message.emit(
+                "Carrier-Symbol sicher erkannt. Einmaliger Korrekturklick; "
+                "warte 1 Sekunde vor der erneuten Zielprüfung."
+            )
+            if self._check_stop():
+                return False
+            left_click(after_delay=0.0)
+            # Kurze Intervalle halten die Wartezeit auf Stop ansprechbar.
+            deadline = time.monotonic() + 1.0
+            while time.monotonic() < deadline:
+                if self._check_stop():
+                    return False
+                time.sleep(min(0.1, max(0.0, deadline - time.monotonic())))
+
+        return False
 
     def _run_tank_routine(
         self,
@@ -1067,65 +1158,8 @@ class AutomationWorker(QObject):
 
             time.sleep(5.0)
 
-            self.log_message.emit("Maus wird auf die Schaltfläche " "positioniert...")
-
-            click_x, click_y = move_to_reference_center(
-                "galaxiekarte_carrier_target",
-                after_delay=0.75,
-            )
-
-            self.log_message.emit(
-                f"Maus positioniert bei " f"X={click_x}, Y={click_y}."
-            )
-
-            self.log_message.emit("Prüfe die Anzeige " "„Carrier-Ziel festlegen“...")
-
-            deadline = time.monotonic() + 10.0
-            best_similarity = 0.0
-            matched = False
-
-            while time.monotonic() < deadline:
-                matched, similarity = vision.check(
-                    "galaxiekarte_carrier_target",
-                    threshold=0.94,
-                )
-
-                best_similarity = max(
-                    best_similarity,
-                    similarity,
-                )
-
-                if matched:
-                    break
-
-                time.sleep(0.25)
-
-            self.log_message.emit(
-                "Carrier-Ziel-Anzeige: " f"{best_similarity * 100:.2f} %"
-            )
-
-            if not matched:
-                raise RuntimeError(
-                    "Die Anzeige „Carrier-Ziel festlegen“ "
-                    "wurde vor dem Mausklick nicht sicher "
-                    "erkannt. "
-                    f"Bester Wert: "
-                    f"{best_similarity * 100:.2f} %"
-                )
-
-            self.log_message.emit("Anzeige erkannt. " "Mausklick wird ausgeführt...")
-
-            left_click(
-                after_delay=2.00,
-            )
-
-            self.log_message.emit("Mausklick erfolgreich ausgeführt.")
-
-            self.log_message.emit(
-                "Carrier-Ziel wurde nach dem Mausklick "
-                "sicher erkannt. Der Ablauf stoppt für "
-                "die Prüfung des nächsten Menüs."
-            )
+            if not self._select_carrier_target(vision):
+                return
 
             self.log_message.emit(
                 "Sprung wurde angefordert. " "Warte auf CarrierJump im Journal..."
