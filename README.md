@@ -97,6 +97,13 @@ CTSVision does not make uncertain decisions.
 
 **Robustness before speed.**
 
+### Version 1.9.5
+- **Fault-tolerant Carrier capacity measurement:** After three unsuccessful OCR attempts, the route continues with a warning. The measurement remains unknown; the known maximum is 25000.
+- **More robust OCR parsing:** Dots and whitespace are also accepted as separators, along with labels containing no numbers. Ambiguous readings, additional numbers and implausible values are still rejected.
+- **Carrier history:** Missing capacity values remain blank. Dependent refueling and consumption calculations are safely skipped when measurements are missing; actual zero values are preserved.
+- **Unknown refueling status:** An unknown previous refueling status prevents inference of the tank level and dependent consumption.
+- **Safety checks:** Existing navigation and fuel checks remain unchanged.
+
 ### Version 1.9.4
 - **Carrier capacity OCR:** Only a single capacity number pair is parsed; labels such as “USED CAPACITY” and “EINHEITEN” cannot add digits. `233872/5000` is repaired to `23387/25000`, including with labels. A single extra digit before the maximum (for example `22387/725000`) remains supported. Values outside 0–25,000, multiple readings, unknown text and missing separators cause a safe rejection rather than guessing.
 - **Linux installer:** The completion instructions are printed correctly; they no longer run as shell commands after successful dependency installation.

@@ -8,6 +8,24 @@ Das Projekt orientiert sich an den Empfehlungen von
 
 ---
 
+## [1.9.5] – 2026-11-13
+
+- **Fehlertolerante Carrier-Kapazitätsmessung:** Nach drei erfolglosen OCR-Versuchen wird die Route mit einer Warnung fortgesetzt. Der Messwert bleibt unbekannt; der bekannte Maximalwert beträgt 25000.
+- **Robustere OCR-Auswertung:** Punkt und Leerraum werden zusätzlich als Trenner akzeptiert, ebenso zahlenfreie Beschriftungen. Mehrdeutige Angaben, zusätzliche Zahlen und unplausible Werte werden weiterhin abgewiesen.
+- **Carrier-Historie:** Fehlende Capacity-Werte bleiben leer. Abhängige Nachtank- und Verbrauchsberechnungen werden bei fehlenden Messwerten sicher übersprungen; echte Nullwerte bleiben erhalten.
+- **Unbekannter Nachtankstatus:** Ohne bekannten vorherigen Nachtankstatus werden Tankstand und davon abhängiger Verbrauch nicht abgeleitet.
+- **Sicherheitsprüfungen:** Bestehende Navigations- und Tankprüfungen bleiben unverändert.
+
+### Gezielte Prüfungen
+
+OCR-Parser, Ablauf nach drei Fehlversuchen, unveränderte Navigations- und Tankabbrüche, leere Historienwerte, Nullwerte und unbekannter Nachtankstatus werden gezielt geprüft. Release-/Update-Tests verwenden temporäre Installationen für v1.9.4 → v1.9.5 einschließlich Datenerhalt und Rollback. Benötigt werden die lokalen Original-ZIPs `release/CTSVision_v1.9.4.zip` und `release/CTSVision_v1.9.5.zip`.
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p 'test_capacity*.py' -v
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p 'test_carrier_target.py' -v
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p 'test_release_update.py' -v
+```
+
 ## [1.9.4]
 
 - Carrier-Kapazitätsparser wertet genau ein Zahlenpaar aus. Beschriftungen wie „USED CAPACITY“, „KAPAZITÄT“, „EINHEITEN“ und „UNITS“ werden vor der Ziffernnormalisierung abgegrenzt.

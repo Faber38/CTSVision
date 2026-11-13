@@ -97,6 +97,13 @@ CTSVision trifft keine unsicheren Entscheidungen.
 
 **Robustheit vor Geschwindigkeit.**
 
+### Version 1.9.5
+- **Fehlertolerante Carrier-Kapazitätsmessung:** Nach drei erfolglosen OCR-Versuchen wird die Route mit einer Warnung fortgesetzt. Der Messwert bleibt unbekannt; der bekannte Maximalwert beträgt 25000.
+- **Robustere OCR-Auswertung:** Punkt und Leerraum werden zusätzlich als Trenner akzeptiert, ebenso zahlenfreie Beschriftungen. Mehrdeutige Angaben, zusätzliche Zahlen und unplausible Werte werden weiterhin abgewiesen.
+- **Carrier-Historie:** Fehlende Capacity-Werte bleiben leer. Abhängige Nachtank- und Verbrauchsberechnungen werden bei fehlenden Messwerten sicher übersprungen; echte Nullwerte bleiben erhalten.
+- **Unbekannter Nachtankstatus:** Ohne bekannten vorherigen Nachtankstatus werden Tankstand und davon abhängiger Verbrauch nicht abgeleitet.
+- **Sicherheitsprüfungen:** Bestehende Navigations- und Tankprüfungen bleiben unverändert.
+
 ### Version 1.9.4
 - **Carrier-Kapazität per OCR:** Ausgewertet wird genau ein Kapazitäts-Zahlenpaar; Beschriftungen wie „USED CAPACITY“ und „EINHEITEN“ erzeugen keine zusätzlichen Ziffern. `233872/5000` wird auch mit Beschriftungen zu `23387/25000` korrigiert. Eine einzelne Extraziffer vor dem Maximum (etwa `22387/725000`) bleibt unterstützt. Werte außerhalb 0–25.000, mehrere Angaben, unbekannter Text und fehlende Trenner werden sicher abgewiesen.
 - **Linux-Installation:** Der Abschlusstext wird korrekt ausgegeben und nach erfolgreicher Installation der Abhängigkeiten nicht mehr als Shell-Befehle ausgeführt.

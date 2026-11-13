@@ -231,19 +231,27 @@ class AutomationWorker(QObject):
     ) -> tuple[int, int]:
         """Liest genau eine Kapazitätsangabe mit bekanntem Maximum 25000.
 
-        Beschriftungen werden vor der OCR-Normalisierung abgegrenzt.
+        Zahlenfreie Beschriftungen werden vor der Normalisierung abgegrenzt.
         Repariert werden nur ein zusätzliches Zeichen vor dem Maximum
         oder dessen um eine Stelle nach rechts verschobener Trenner.
         Ohne Trenner oder bei zusätzlichen Zahlen bleibt der Text unsicher.
         """
+        # Den gesamten Text prüfen, nicht nur einen passenden Ausschnitt:
+        # Beschriftungen dürfen keine weiteren Zahlenfelder verdecken.
+        # Wörter bleiben durch Leerraum (vorne auch Doppelpunkt) abgegrenzt.
+        label = r"[^\W\d_]+(?:\s+[^\W\d_]+)*"
         match = re.fullmatch(
-            r"\s*(?:(?:USED\s+CAPACITY|BELEGTE\s+KAPAZITÄT|KAPAZITÄT)\s*:?\s*)?"
-            r"(?P<used>[0-9OIL]{1,6})\s*[/|\\:]\s*"
+            rf"\s*(?:(?P<prefix>{label})(?:\s*:\s*|\s+))?"
+            r"(?P<used>[0-9OIL]{1,6})(?:\s*[./|\\:]\s*|\s+)"
             r"(?P<maximum>[0-9OIL]{4,6})"
-            r"\s*(?:EINHEITEN|UNITS?)?\s*",
+            rf"(?:\s+(?P<suffix>{label}))?\s*",
             text.upper(),
         )
-        if match is not None:
+        if match is not None and all(
+            c.isalpha() or c.isspace()
+            for name in ("prefix", "suffix")
+            for c in (match.group(name) or "")
+        ):
             used_raw, maximum_raw = match.group("used", "maximum")
             # Keine aus reinen Buchstaben konstruierten Zahlen akzeptieren.
             if any(c.isdigit() for c in used_raw) and any(
@@ -280,15 +288,19 @@ class AutomationWorker(QObject):
         self,
         *,
         max_attempts: int = 3,
-    ) -> tuple[int, int]:
+    ) -> tuple[int | None, int]:
         """
         Liest im geöffneten Carrier-Management die aktuelle Kapazität
         aus dem Referenzbereich 'ocr_carrier_capacity'.
 
         Bei einem nicht lesbaren oder unplausiblen OCR-Ergebnis wird die
         Anzeige bis zu max_attempts-mal erneut aufgenommen und ausgewertet.
-        Erst nach dem letzten Fehlversuch wird der Automatiklauf abgebrochen.
+        Nach dem letzten Fehlversuch bleibt der Messwert unbekannt; eine
+        Warnung erlaubt die Fortsetzung mit unveränderten Sicherheitsprüfungen.
         """
+
+        self.current_carrier_capacity = None
+        self.current_carrier_capacity_maximum = 25000
 
         reference_name = "ocr_carrier_capacity"
         config = load_config()
@@ -423,11 +435,15 @@ class AutomationWorker(QObject):
                     )
                     time.sleep(0.75)
 
-        raise RuntimeError(
-            "Carrier-Kapazität konnte auch nach "
+        self.log_message.emit(
+            "WARNUNG: Carrier-Kapazität konnte auch nach "
             f"{max_attempts} OCR-Versuchen nicht sicher gelesen werden. "
+            "Aktuelle Capacity bleibt unbekannt (None), Maximum ist 25000. "
+            "Der Sprungablauf wird fortgesetzt; Berechnungen, die diesen "
+            "Messwert benötigen, werden übersprungen. "
             f"Letzter Fehler: {last_error}"
         )
+        return None, 25000
 
     def _determine_tank_before_jump(self) -> None:
         """
@@ -496,6 +512,13 @@ class AutomationWorker(QObject):
         if previous_tank_after is None:
             self.log_message.emit(
                 "Carrier-Historie: Der vorherige Nach-Sprung-Tankwert fehlt. "
+                "Tank vor Sprung bleibt unbekannt."
+            )
+            return
+
+        if previous_refueled is None:
+            self.log_message.emit(
+                "Carrier-Historie: Der vorherige Nachtankstatus ist unbekannt. "
                 "Tank vor Sprung bleibt unbekannt."
             )
             return
@@ -1103,9 +1126,8 @@ class AutomationWorker(QObject):
 
             self._read_carrier_capacity()
 
-            # Erst jetzt kennen wir die aktuelle Capacity und können bei
-            # Folgesprüngen eine eventuelle Nachtankmenge seit dem letzten
-            # Sprung aus der Capacity-Differenz ableiten.
+            # Nur bei bekannten Messwerten eine eventuelle Nachtankmenge
+            # seit dem letzten Sprung aus der Capacity-Differenz ableiten.
             self._determine_tank_before_jump()
 
             if self._check_stop():

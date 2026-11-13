@@ -55,15 +55,15 @@ class CatalogTests(unittest.TestCase):
 class ReleaseUpdateTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.old_zip = ROOT / 'release/CTSVision_v1.9.3.zip'
-        cls.new_zip = ROOT / 'release/CTSVision_v1.9.4.zip'
+        cls.old_zip = ROOT / 'release/CTSVision_v1.9.4.zip'
+        cls.new_zip = ROOT / 'release/CTSVision_v1.9.5.zip'
         if not cls.old_zip.is_file() or not cls.new_zip.is_file():
-            raise RuntimeError('Für Integrationstests sind die lokalen ZIPs v1.9.3 und v1.9.4 erforderlich.')
+            raise RuntimeError('Für Integrationstests sind die lokalen ZIPs v1.9.4 und v1.9.5 erforderlich.')
         digest = hashlib.sha256(cls.old_zip.read_bytes()).hexdigest()
-        if digest != '366704fc68da1fd59b4cd71d72ac63af6b032fdfbef93e940d08e1e646035329':
-            raise RuntimeError('v1.9.3-ZIP entspricht nicht dem veröffentlichten Original.')
+        if digest != 'bde30e01aef3dc8ae62d633463a2baabb81492849bb7b8b08adbc88735ef2573':
+            raise RuntimeError('v1.9.4-ZIP entspricht nicht dem veröffentlichten Original.')
         with zipfile.ZipFile(cls.old_zip) as z:
-            cls.old = load_module('old_update_test', z.read('CTSVision_v1.9.3/update.py'))
+            cls.old = load_module('old_update_test', z.read('CTSVision_v1.9.4/update.py'))
 
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
@@ -71,7 +71,7 @@ class ReleaseUpdateTests(unittest.TestCase):
         self.root = Path(self.temporary.name)
         with zipfile.ZipFile(self.old_zip) as z:
             z.extractall(self.root)
-        self.install = self.root / 'CTSVision_v1.9.3'
+        self.install = self.root / 'CTSVision_v1.9.4'
         self.personal = {
             'config.json': b'{"references":{"my_reference":{"x":123,"y":456}}}',
             'settings.json': b'{"last_route":"routes/private.csv"}',
@@ -91,7 +91,7 @@ class ReleaseUpdateTests(unittest.TestCase):
         self.old_catalog = (self.install / 'config/reference_catalog.json').read_bytes()
         self.download = self.root / 'download'
         self.download.mkdir()
-        self.package = self.download / 'v1.9.4.zip'
+        self.package = self.download / 'v1.9.5.zip'
         self.package.write_bytes(self.new_zip.read_bytes())
 
     def assert_personal_unchanged(self):
@@ -104,21 +104,21 @@ class ReleaseUpdateTests(unittest.TestCase):
         original_copy = module._copy_release
         def copy_then_fail(source, destination):
             original_copy(source, destination)
-            if source.name == 'CTSVision_v1.9.4' and fail:
+            if source.name == 'CTSVision_v1.9.5' and fail:
                 raise OSError('simulierter Updatefehler nach Kopieren')
         with patch.object(module, '_wait_for_parent_exit'), \
                 patch.object(module, '_restart_ctsvision') as restart, \
                 patch.object(module, '_copy_release', side_effect=copy_then_fail):
             result = module.apply_update(
                 zip_path=self.package, install_dir=self.install,
-                current_version='1.9.3', latest_version='1.9.4', parent_pid=123)
+                current_version='1.9.4', latest_version='1.9.5', parent_pid=123)
             restart.assert_called_once_with(self.install)
             return result
 
     def test_old_updater_success_and_wizard_migration(self):
         self.assertEqual(self.apply(self.old), 0)
         self.assert_personal_unchanged()
-        self.assertIn('CURRENT_VERSION = "1.9.4"', (self.install / 'update.py').read_text())
+        self.assertIn('CURRENT_VERSION = "1.9.5"', (self.install / 'update.py').read_text())
         installed_store = load_module('installed_store_test', (self.install / 'project_store.py').read_bytes())
         with patch.object(installed_store, 'REFERENCE_CATALOG_PATH', self.install / 'config/reference_catalog.json'):
             names = [e['name'] for e in installed_store.load_reference_catalog()]
@@ -131,12 +131,12 @@ class ReleaseUpdateTests(unittest.TestCase):
         self.assertEqual(self.apply(self.old, fail=True), 2)
         self.assert_personal_unchanged()
         self.assertEqual((self.install / 'automation_gui.py').read_bytes(), original)
-        self.assertIn('CURRENT_VERSION = "1.9.3"', (self.install / 'update.py').read_text())
+        self.assertIn('CURRENT_VERSION = "1.9.4"', (self.install / 'update.py').read_text())
 
     def add_unwanted_personal_files(self):
         with zipfile.ZipFile(self.package, 'a') as z:
             for name in self.personal:
-                z.writestr('CTSVision_v1.9.4/' + name, b'must never overwrite user data')
+                z.writestr('CTSVision_v1.9.5/' + name, b'must never overwrite user data')
 
     def test_new_updater_protects_even_bad_package(self):
         self.add_unwanted_personal_files()
@@ -149,7 +149,10 @@ class ReleaseUpdateTests(unittest.TestCase):
         self.assertEqual(self.apply(update, fail=True), 2)
         self.assert_personal_unchanged()
         self.assertEqual((self.install / 'automation_gui.py').read_bytes(), original)
-        self.assertFalse((self.install / 'assets/templates/galaxiekarte_carrier_symbol.png').exists())
+        with zipfile.ZipFile(self.old_zip) as archive:
+            self.assertEqual(
+                (self.install / 'assets/templates/galaxiekarte_carrier_symbol.png').read_bytes(),
+                archive.read('CTSVision_v1.9.4/assets/templates/galaxiekarte_carrier_symbol.png'))
 
     def test_rollback_keeps_new_or_changed_nested_route(self):
         backup = self.install / 'backup/test'
@@ -167,10 +170,10 @@ class ReleaseUpdateTests(unittest.TestCase):
 
     def test_archive_complete_and_no_personal_data(self):
         names = json.loads((ROOT / 'tools/release_manifest.json').read_text())
-        builder.validate_archive(self.new_zip, names, '1.9.4')
+        builder.validate_archive(self.new_zip, names, '1.9.5')
         with zipfile.ZipFile(self.new_zip) as z:
             for name in names:
-                self.assertEqual(z.read('CTSVision_v1.9.4/' + name), (ROOT / name).read_bytes(), name)
+                self.assertEqual(z.read('CTSVision_v1.9.5/' + name), (ROOT / name).read_bytes(), name)
 
     def test_manifest_rejects_personal_data(self):
         for name in self.personal:
@@ -180,7 +183,7 @@ class ReleaseUpdateTests(unittest.TestCase):
     def test_build_refuses_overwrite(self):
         before = self.new_zip.read_bytes()
         with self.assertRaises(FileExistsError):
-            builder.build_release(ROOT, '1.9.4')
+            builder.build_release(ROOT, '1.9.5')
         self.assertEqual(self.new_zip.read_bytes(), before)
 
     def test_protected_paths(self):
