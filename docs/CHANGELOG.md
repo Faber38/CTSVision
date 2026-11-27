@@ -8,6 +8,17 @@ Das Projekt orientiert sich an den Empfehlungen von
 
 ---
 
+## [1.9.6] – 2026-11-27
+- **Python-Kompatibilität:** Installation und Start prüfen reguläres CPython 3.11–3.13. Bei neuen Umgebungen wird Python 3.12 vor 3.13 und 3.11 bevorzugt; `CTSVISION_PYTHON` erlaubt eine manuelle Auswahl.
+- **Virtuelle Umgebungen:** Kompatible Projektumgebungen werden weiterverwendet. Inkompatible oder beschädigte Umgebungen bleiben erhalten; fremde aktivierte Umgebungen werden nicht verwendet.
+- **Linux:** Prüfung von Architektur und glibc sowie verständliche Distributionshinweise, einschließlich Fedora 44. Das System-Python bleibt unverändert.
+- **Dokumentation und Paket:** English/Deutsch-Auswahl ganz oben, synchronisierte Installationshinweise und beide READMEs als Pflichtbestandteile des ZIPs.
+- **Updates:** Bestehende Umgebungen bleiben erhalten; keine automatische Python-Migration. Bibliotheksversionen, OCR, Navigation, Tankautomatik und Carrier-Historie bleiben unverändert.
+
+- **Veröffentlichung:** Persönliche Laufzeitdateien werden nicht mehr im aktuellen Git-Stand geführt; lokale Dateien bleiben erhalten. Das GitHub-Werkzeug schließt persönliche Daten aus und prüft vorgemerkte Dateien vor dem Commit.
+
+Gezielt geprüft: Interpreter-Auswahl, Python 3.14 mit/ohne kompatiblen Interpreter, vorhandene und beschädigte Umgebungen, Fedora-Hinweise, Startskript, Paketinhalt sowie Datenerhalt bei Update und Rollback. Fedora-/ARM64- und alternative Python-Laufzeiten wurden simuliert; vollständige GUI-/OCR-Laufzeittests dort stehen aus.
+
 ## [1.9.5] – 2026-11-13
 
 - **Fehlertolerante Carrier-Kapazitätsmessung:** Nach drei erfolglosen OCR-Versuchen wird die Route mit einer Warnung fortgesetzt. Der Messwert bleibt unbekannt; der bekannte Maximalwert beträgt 25000.

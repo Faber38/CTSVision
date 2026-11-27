@@ -85,6 +85,8 @@
   "ocr/ocr_test.py",
   "ocr/paddle_engine.py",
   "project_store.py",
+  "python_runtime.py",
+  "python_runtime.sh",
   "requirements.txt",
   "route_info_window.py",
   "route_manager.py",

@@ -2,6 +2,7 @@
 import hashlib
 import importlib.util
 import json
+import shutil
 from pathlib import Path
 import sys
 import tempfile
@@ -73,6 +74,9 @@ class ReleaseUpdateTests(unittest.TestCase):
             z.extractall(self.root)
         self.install = self.root / 'CTSVision_v1.9.4'
         self.personal = {
+            'venv/pyvenv.cfg': b'original python environment',
+            'venv/bin/python': b'original interpreter',
+            '.venv/keep': b'alternative environment',
             'config.json': b'{"references":{"my_reference":{"x":123,"y":456}}}',
             'settings.json': b'{"last_route":"routes/private.csv"}',
             'route_state.json': b'{"completed_jumps":7}',
@@ -169,11 +173,45 @@ class ReleaseUpdateTests(unittest.TestCase):
         self.assertFalse((new.parent / 'new_code.py').exists())
 
     def test_archive_complete_and_no_personal_data(self):
+        # Build only a disposable test fixture, never a project release artifact.
         names = json.loads((ROOT / 'tools/release_manifest.json').read_text())
-        builder.validate_archive(self.new_zip, names, '1.9.5')
-        with zipfile.ZipFile(self.new_zip) as z:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for name in names + ['tools/release_manifest.json']:
+                destination = root / name
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(ROOT / name, destination)
+            archive = builder.build_release(root, update.CURRENT_VERSION)
+            builder.validate_archive(archive, names, update.CURRENT_VERSION)
+            with zipfile.ZipFile(archive) as z:
+                for name in names:
+                    self.assertEqual(z.read('CTSVision_v' + update.CURRENT_VERSION + '/' + name),
+                                     (ROOT / name).read_bytes(), name)
+
+    def test_updated_scripts_arrive_and_environment_is_preserved(self):
+        names = json.loads((ROOT / 'tools/release_manifest.json').read_text())
+        with zipfile.ZipFile(self.package, 'w') as archive:
             for name in names:
-                self.assertEqual(z.read('CTSVision_v1.9.5/' + name), (ROOT / name).read_bytes(), name)
+                archive.write(ROOT / name, 'CTSVision_v1.9.5/' + name)
+        self.assertEqual(self.apply(update), 0)
+        self.assert_personal_unchanged()
+        for name in ('install.sh', 'start.sh', 'python_runtime.py', 'python_runtime.sh',
+                     'README.md', 'README_DE.md'):
+            self.assertEqual((self.install / name).read_bytes(), (ROOT / name).read_bytes())
+
+    def test_required_readmes_and_runtime_files(self):
+        names = json.loads((ROOT / 'tools/release_manifest.json').read_text())
+        for required in ('README.md', 'README_DE.md', 'python_runtime.py', 'python_runtime.sh'):
+            with self.subTest(required=required), self.assertRaisesRegex(ValueError, 'Pflichtdateien'):
+                builder.validate_archive(self.new_zip, [n for n in names if n != required], '1.9.5')
+
+    def test_readme_language_links_and_instructions(self):
+        for name in ('README.md', 'README_DE.md'):
+            text = (ROOT / name).read_text()
+            self.assertEqual(text.splitlines()[0], '**[English](README.md) | [Deutsch](README_DE.md)**')
+            for term in ('CTSVISION_PYTHON=/usr/bin/python3.12', 'Fedora 44',
+                         'sudo dnf install python3.12', '3.11–3.13', '2.34', '2.39'):
+                self.assertIn(term, text)
 
     def test_manifest_rejects_personal_data(self):
         for name in self.personal:

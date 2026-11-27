@@ -31,3 +31,10 @@ Thumbs.db
 # Benutzerspezifische Referenzbilder
 references/
 backup/
+# Persönliche Einstellungen, Laufzeitstände und Routen
+config.json
+settings.json
+route_state.json
+logs/
+*.csv
+*.CSV

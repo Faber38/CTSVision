@@ -1,8 +1,8 @@
+**[English](README.md) | [Deutsch](README_DE.md)**
+
 # CTSVision
 
 > **Computer-Vision-, OCR- und Journal-Framework für Elite Dangerous**
-
-[🇩🇪 Deutsch](README_DE.md) | [🇬🇧 English](README.md)
 
 ## ⚠️ Wichtiger Hinweis – Frontier Developments / Elite Dangerous
 
@@ -58,6 +58,54 @@ Das Skript erstellt automatisch:
 - installiert alle benötigten Python-Pakete
 - richtet CTSVision für den ersten Start ein
 
+### Python- und Linux-Voraussetzungen
+
+Benötigt wird **reguläres CPython 3.11–3.13 (64 Bit)**; **Python 3.12 wird bevorzugt**.
+Python 3.14, PyPy und Free-threaded-Python-Builds werden vom festgelegten
+PaddlePaddle-Paket nicht unterstützt. Die Skripte prüfen den tatsächlichen
+Interpreter, nicht nur seinen Namen. Linux x86_64 benötigt glibc **ab 2.34**,
+aarch64 glibc **ab 2.39**. Alpine/musl wird mit diesen Binärpaketen nicht unterstützt.
+Diese Prüfungen ersetzen keine GUI-/OCR-Laufzeittests; eine grafische Sitzung und
+die erforderlichen Qt-/X11-Bibliotheken müssen ebenfalls vorhanden sein.
+
+Der Installer erhält eine kompatible Projektumgebung `venv`. Für eine neue
+Umgebung sucht er Python **3.12, danach 3.13, danach 3.11**, einschließlich
+versionsgebundener Programme und `python3`/`python` im `PATH`. Eine fremde aktivierte
+virtuelle Umgebung wird weder als Basisinterpreter noch als Installationsziel
+verwendet. Für eine **neue** Projektumgebung lässt sich der Basisinterpreter
+explizit auswählen:
+
+```bash
+CTSVISION_PYTHON=/usr/bin/python3.12 ./install.sh
+```
+
+Diese Einstellung ersetzt keine vorhandene `venv`. Inkompatible oder beschädigte
+Projektumgebungen bleiben erhalten: CTSVision beenden, `venv` unter einem freien
+Sicherungsnamen umbenennen und den Installer erneut ausführen. Keine
+Interpreter-Symlinks innerhalb einer bestehenden Umgebung austauschen. Eine
+separate `.venv` bleibt unberührt; diese Skripte verwenden ausschließlich `venv`.
+
+**Fedora 44:** Bei Bedarf Python 3.12 zusätzlich installieren und dann den Installer starten:
+
+```bash
+sudo dnf install python3.12
+CTSVISION_PYTHON=/usr/bin/python3.12 ./install.sh
+```
+
+Python 3.12 ist in den [Fedora-Paketquellen](https://packages.fedoraproject.org/pkgs/python3.12/python3.12/index.html) verfügbar.
+Den Paketmanager-Befehl nur bei Bedarf selbst ausführen. CTSVision verändert niemals
+das System-Python und installiert keine Systempakete automatisch. Unter Debian,
+Ubuntu und Pop!_OS kann zusätzlich das zum Interpreter passende Paket
+`python3.X-venv` erforderlich sein. Unter openSUSE die versionsbezogenen
+Python-/venv-Pakete prüfen; unter Arch/Manjaro einen zusätzlichen kompatiblen
+Interpreter verwenden, falls das System-Python zu neu ist. Die Paketverfügbarkeit
+hängt von der Distributionsversion ab.
+
+Integrierte Updates erhalten die vorhandene Umgebung und führen weder eine
+Python-Migration noch eine automatische Installation von Abhängigkeiten durch.
+Installation und `start.sh` verwenden dieselben Kompatibilitätsprüfungen.
+Die Bibliotheksversionen bleiben unverändert.
+
 ## 3. CTSVision starten
 
 Nach erfolgreicher Installation genügt zukünftig:
@@ -68,9 +116,9 @@ Nach erfolgreicher Installation genügt zukünftig:
 
 Das Startskript
 
-- aktiviert automatisch die Python-Umgebung,
-- prüft, ob **Elite Dangerous** bereits läuft,
-- und startet anschließend CTSVision.
+- prüft die Projektumgebung sowie deren Python-/Plattform-Kompatibilität,
+- verwendet den Projektinterpreter direkt,
+- und startet anschließend CTSVision. Das Shellskript selbst prüft nicht, ob Elite Dangerous läuft.
 
 ---
 
@@ -96,6 +144,13 @@ Tipp: Beim Erstellen der Referenzbilder können die Koordinatenfelder im Vision 
 CTSVision trifft keine unsicheren Entscheidungen.
 
 **Robustheit vor Geschwindigkeit.**
+
+### Version 1.9.6
+- **Python-Kompatibilität:** Installation und Start prüfen reguläres CPython 3.11–3.13. Bei neuen Umgebungen wird Python 3.12 vor 3.13 und 3.11 bevorzugt; `CTSVISION_PYTHON` erlaubt eine manuelle Auswahl.
+- **Virtuelle Umgebungen:** Kompatible Projektumgebungen werden weiterverwendet. Inkompatible oder beschädigte Umgebungen bleiben erhalten; fremde aktivierte Umgebungen werden nicht verwendet.
+- **Linux:** Prüfung von Architektur und glibc sowie verständliche Distributionshinweise, einschließlich Fedora 44. Das System-Python bleibt unverändert.
+- **Dokumentation und Paket:** English/Deutsch-Auswahl ganz oben, synchronisierte Installationshinweise und beide READMEs als Pflichtbestandteile des ZIPs.
+- **Updates:** Bestehende Umgebungen bleiben erhalten; keine automatische Python-Migration. Bibliotheksversionen, OCR, Navigation, Tankautomatik und Carrier-Historie bleiben unverändert.
 
 ### Version 1.9.5
 - **Fehlertolerante Carrier-Kapazitätsmessung:** Nach drei erfolglosen OCR-Versuchen wird die Route mit einer Warnung fortgesetzt. Der Messwert bleibt unbekannt; der bekannte Maximalwert beträgt 25000.

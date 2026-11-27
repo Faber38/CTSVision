@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 
-set -u
+set -euo pipefail
+
+cd -- "$(dirname -- "$0")/.."
 
 PROJECT_NAME="CTSVision"
 
 show_header() {
-    clear
+    clear || true
     echo "================================="
     echo " $PROJECT_NAME – GitHub-Werkzeug"
     echo "================================="
@@ -56,7 +58,53 @@ commit_and_push() {
 
     echo
     echo "Dateien werden hinzugefügt ..."
-    git add .
+    # Explizite NUL-getrennte Dateiliste; private Pfade auch dann ausschließen,
+    # wenn sie bereits versioniert sind. Dieselben Regeln wie beim Paketbau.
+    local staging_paths
+    staging_paths=$(mktemp)
+    if ! python3 -B - > "$staging_paths" <<'PY_PATHS'
+import os
+import runpy
+import subprocess
+import sys
+check = runpy.run_path('tools/build_release.py')['validate_paths']
+paths = subprocess.check_output([
+    'git', 'ls-files', '--cached', '--others', '--exclude-standard', '-z'
+]).split(b'\0')
+for raw in sorted(set(paths) - {b''}):
+    path = os.fsdecode(raw)
+    try:
+        check([path])
+    except ValueError:
+        continue
+    sys.stdout.buffer.write(b':(literal)' + raw + b'\0')
+PY_PATHS
+    then
+        rm -f -- "$staging_paths"
+        return 1
+    fi
+    if ! git add -A --pathspec-from-file="$staging_paths" --pathspec-file-nul; then
+        rm -f -- "$staging_paths"
+        return 1
+    fi
+    rm -f -- "$staging_paths"
+
+    # Bereits vorgemerkte persönliche Daten ebenfalls abweisen.
+    # Löschungen aus dem Index sind erlaubt; lokale Dateien bleiben erhalten.
+    if ! python3 -B - <<'PY_CHECK'
+import runpy
+import subprocess
+check = runpy.run_path('tools/build_release.py')['validate_paths']
+paths = subprocess.check_output([
+    'git', 'diff', '--cached', '--name-only', '--diff-filter=ACMRT', '-z'
+]).decode().split('\0')
+check([path for path in paths if path])
+PY_CHECK
+    then
+        echo 'Abbruch: Persönliche oder unzulässige Dateien sind vorgemerkt.' >&2
+        return 1
+    fi
+    git diff --cached --stat
 
     echo
     echo "Commit wird erstellt ..."

@@ -15,6 +15,7 @@ FORBIDDEN_DIRS = {
     'venv', '.venv', '__pycache__', '.aws', '.codex', '.agents',
 }
 FORBIDDEN_FILES = {'config.json', 'settings.json', 'route_state.json'}
+REQUIRED_FILES = {'README.md', 'README_DE.md', 'python_runtime.py', 'python_runtime.sh'}
 
 
 def validate_paths(names: list[str]) -> None:
@@ -29,8 +30,15 @@ def validate_paths(names: list[str]) -> None:
         raise ValueError('Doppelte Dateien im Release-Manifest.')
 
 
-def validate_archive(archive: Path, names: list[str], version: str) -> None:
+def validate_manifest(names: list[str]) -> None:
     validate_paths(names)
+    missing = REQUIRED_FILES - set(names)
+    if missing:
+        raise ValueError('Pflichtdateien fehlen im Release-Manifest: ' + ', '.join(sorted(missing)))
+
+
+def validate_archive(archive: Path, names: list[str], version: str) -> None:
+    validate_manifest(names)
     prefix = f'CTSVision_v{version}/'
     with zipfile.ZipFile(archive) as z:
         expected = {prefix + name for name in names}
@@ -59,7 +67,7 @@ def build_release(root: Path, version: str) -> Path:
     if not version or any(c not in '0123456789.' for c in version):
         raise ValueError('Ungültige Versionsnummer.')
     names = json.loads((root / 'tools/release_manifest.json').read_text())
-    validate_paths(names)
+    validate_manifest(names)
     for name in names:
         source = root / name
         if not source.is_file() or any(p.is_symlink() for p in [source, *source.parents]):

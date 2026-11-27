@@ -1,8 +1,8 @@
+**[English](README.md) | [Deutsch](README_DE.md)**
+
 # CTSVision
 
 > **Computer Vision, OCR and Journal Framework for Elite Dangerous**
-
-[🇬🇧 English](README.md) | [🇩🇪 Deutsch](README_DE.md)
 
 ## ⚠️ Important Notice – Frontier Developments / Elite Dangerous
 
@@ -58,6 +58,51 @@ The script automatically:
 - installs all required Python packages
 - prepares CTSVision for its first start
 
+### Python and Linux requirements
+
+Use **regular CPython 3.11–3.13 (64-bit)**; **Python 3.12 is preferred**.
+Python 3.14, PyPy and free-threaded Python builds are not supported by the pinned
+PaddlePaddle package. The scripts check the actual interpreter, not just its name.
+Linux x86_64 requires glibc **2.34 or newer**; aarch64 requires glibc **2.39 or newer**.
+Alpine/musl is not supported by these binary packages. These checks do not replace
+GUI/OCR runtime testing; a graphical session and the required Qt/X11 libraries
+must also be available.
+
+The installer keeps a compatible project `venv`. For a new environment it searches
+for Python **3.12, then 3.13, then 3.11**, including versioned executables and
+`python3`/`python` on `PATH`. A different activated virtual environment is not used
+as the interpreter base or installation target. To select a base interpreter for a
+**new** project environment explicitly:
+
+```bash
+CTSVISION_PYTHON=/usr/bin/python3.12 ./install.sh
+```
+
+This setting does not replace an existing `venv`. Incompatible or damaged
+project environments are preserved: close CTSVision, rename `venv` to an unused
+backup name, then rerun the installer. Do not replace interpreter symlinks inside
+an existing environment. A separate `.venv` is left untouched; these scripts use
+`venv` exclusively.
+
+**Fedora 44:** install an additional Python 3.12 if necessary, then run the installer:
+
+```bash
+sudo dnf install python3.12
+CTSVISION_PYTHON=/usr/bin/python3.12 ./install.sh
+```
+
+Python 3.12 is available in the [Fedora package repositories](https://packages.fedoraproject.org/pkgs/python3.12/python3.12/index.html).
+Run the package-manager command yourself only if needed. CTSVision never changes
+the system Python or installs system packages automatically. On Debian, Ubuntu
+and Pop!_OS, the selected interpreter may also need its matching `python3.X-venv`
+package. On openSUSE, check the version-specific Python/venv packages; on
+Arch/Manjaro, use an additional compatible interpreter if system Python is too new.
+Package availability depends on the distribution release.
+
+Integrated updates preserve the existing environment and do not migrate Python
+or install dependencies automatically. Both installation and `start.sh` apply the
+same compatibility checks. The dependency versions remain unchanged.
+
 ## 3. Start CTSVision
 
 After a successful installation, simply use:
@@ -68,9 +113,9 @@ After a successful installation, simply use:
 
 The start script:
 
-- automatically activates the Python environment,
-- checks whether **Elite Dangerous** is already running,
-- and then starts CTSVision.
+- checks the project environment and its Python/platform compatibility,
+- uses the project interpreter directly,
+- and then starts CTSVision. The shell script itself does not check whether Elite Dangerous is running.
 
 ---
 
@@ -96,6 +141,13 @@ Good reference image quality is essential for reliable image recognition.
 CTSVision does not make uncertain decisions.
 
 **Robustness before speed.**
+
+### Version 1.9.6
+- **Python compatibility:** Installation and startup check regular CPython 3.11–3.13. New environments prefer Python 3.12, then 3.13 and 3.11; `CTSVISION_PYTHON` supports manual selection.
+- **Virtual environments:** Compatible project environments are reused. Incompatible or damaged environments are preserved; other activated environments are not used.
+- **Linux:** Architecture and glibc checks with clear distribution-specific guidance, including Fedora 44. System Python remains unchanged.
+- **Documentation and packaging:** English/Deutsch selection at the top, synchronized installation instructions and both READMEs required in the ZIP.
+- **Updates:** Existing environments are preserved without automatic Python migration. Dependency versions, OCR, navigation, refueling automation and Carrier History remain unchanged.
 
 ### Version 1.9.5
 - **Fault-tolerant Carrier capacity measurement:** After three unsuccessful OCR attempts, the route continues with a warning. The measurement remains unknown; the known maximum is 25000.
